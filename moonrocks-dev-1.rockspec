@@ -15,7 +15,10 @@ description = {
 
 dependencies = {
   "lua >= 5.1",
-  "penlight >= 1.1.0"
+  "penlight >= 1.1.0",
+  "ansicolors",
+  "luasocket",
+  "lua-cjson",
 }
 
 build = {

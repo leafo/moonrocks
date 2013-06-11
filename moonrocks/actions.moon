@@ -2,11 +2,15 @@
 import Api from require "moonrocks.api"
 
 actions = {
+  login: =>
+    api = Api @
+    api\login!
+
   install: =>
     print "install..."
 
   push: (fname) =>
-    api = Api!
+    api = Api @
     print "pushing #{fname}"
 }
 
