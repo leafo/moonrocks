@@ -6,7 +6,7 @@ import dirname from require "pl.path"
 import concat from table
 
 pretty = require "pl.pretty"
-
+multipart = require "moonrocks.multipart"
 
 local encode_query_string
 
@@ -47,20 +47,30 @@ class Api
     ltn12 = require "ltn12"
     json = require "cjson"
 
-    (path, params) =>
+    (path, params, post_params=nil) =>
       assert @config.key, "Must have api key before performing any actions"
+
+      local body
+      headers = {}
 
       url = "http://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
       if params and next(params)
         url ..= "?" .. encode_query_string params
 
+      if post_params
+        body, boundary = multipart.encode post_params
+        headers["Content-length"] = #body
+        headers["Content-type"] = "multipart/form-data; boundary=#{boundary}"
+
       out = {}
       _, status = http.request {
-        :url
+        :url, :headers
+        method: post_params and "POST" or "GET"
         sink: ltn12.sink.table out
+        source: body and ltn12.source.string body
       }
 
-      assert status == 200, "API returned #{status}"
+      assert status == 200, "API returned #{status} - #{url}"
       json.decode concat out
 
 
