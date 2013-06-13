@@ -4,8 +4,6 @@ import File from require "moonrocks.multipart"
 
 pretty = require "pl.pretty"
 
-moon = require "moon"
-
 load_rockspec = (fname) ->
   rockspec = {}
   fn = assert loadfile fname
@@ -32,7 +30,7 @@ actions = {
   install: =>
     error "TODO"
 
-  push: (fname) =>
+  upload: (fname) =>
     api = Api @
     rockspec = load_rockspec fname
 
