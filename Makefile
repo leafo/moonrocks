@@ -2,7 +2,6 @@
 local: build
 	luarocks make --local
 
-
 build::
 	moonc moonrocks
 	echo '#!/usr/bin/env lua' > bin/moonrocks

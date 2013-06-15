@@ -77,7 +77,18 @@ run = (params, flags) ->
   action_name = assert params[1], "missing command"
   fn = assert actions[action_name], "unknown action `#{action_name}`"
   params = [p for p in *params[2,]]
-  fn flags, unpack params
+
+  xpcall (-> fn flags, unpack params), (err) ->
+    err = err\match("^.-:.-:.(.*)$") or err unless flags.trace
+    msg = colors "%{bright red}Error:%{reset} #{err}"
+    if flags.trace
+      print debug.traceback msg, 2
+    else
+      print msg
+      print " * Run with --trace to see traceback"
+      print " * Report issues to https://github.com/leafo/moonrocks/issues"
+
+    os.exit 1
 
 { :run, :actions }
 
