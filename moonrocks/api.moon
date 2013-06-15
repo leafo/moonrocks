@@ -22,28 +22,28 @@ class Api
     @config = setmetatable {}, __index: @
     @read!
 
-    unless @config.key
-      @login!
+    os.exit 1 unless @config.key or @login!
 
   login: =>
-    print "You need an API key to continue."
+    print colors "%{bright yellow}You need an API key to continue."
     print "Navigate to http://#{@config.server}/settings and create a new key."
     while true
       io.stdout\write "Paste API key: "
       key = io.stdin\read "*l"
-      break if key == ""
+      break if not key or key == ""
       @config.key = key
       res = @raw_method "status"
       if errors = res.errors
-        print "Server says: #{errors[1]}"
+        print colors "%{bright yellow}Server says:%{reset} #{errors[1]}"
       else
         break
 
     if @config.key
       @write!
+      true
     else
-      print "Aborting"
-
+      print colors "%{bright red}Aborting"
+      false
 
   method: (...) =>
     with res = @raw_method ...
