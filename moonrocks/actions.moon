@@ -36,6 +36,15 @@ actions = {
     api = Api @
     rockspec = load_rockspec fname
 
+    rock_fname = unless @["skip-pack"]
+      print colors "%{cyan}Packing %{reset}#{rockspec.package}"
+      ret = os.execute "luarocks pack '#{fname}'"
+      unless ret == 0
+        print colors "%{bright red}Failed to pack source rock!%{reset} (--skip-pack to disable)"
+        return
+
+      fname\gsub "rockspec$", "src.rock"
+
     print colors "%{cyan}Sending%{reset} #{fname}..."
 
     res = api\method "check_rockspec", {
@@ -48,7 +57,7 @@ actions = {
 
     if res.version
       print colors "%{bright yellow}A version of this module already exists.%{reset} (#{rockspec.package} #{rockspec.version})"
-      return unless prompt "Overwite existing rockspec?"
+      return unless prompt "Overwite?"
     else
       print "Will create new version. (#{rockspec.version})"
 
@@ -57,8 +66,11 @@ actions = {
     if res.is_new and #res.manifests == 0
       print colors "%{bright yellow}Warning: module not added to root manifest due to name taken"
 
-    if res.module_url
-      print colors "%{bright green}Rockspec uploaded:%{reset} #{res.module_url}"
+    if rock_fname
+      print colors "%{cyan}Sending%{reset} #{rock_fname}..."
+      api\method "upload_rock/#{res.version.id}", nil, rock_file: File(rock_fname)
+
+    print colors "%{bright green}Success:%{reset} #{res.module_url}"
 }
 
 run = (params, flags) ->
