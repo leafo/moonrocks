@@ -2,6 +2,8 @@
 import Api from require "moonrocks.api"
 import File from require "moonrocks.multipart"
 
+colors = require "ansicolors"
+
 pretty = require "pl.pretty"
 
 load_rockspec = (fname) ->
@@ -17,7 +19,7 @@ load_rockspec = (fname) ->
 
 prompt = (msg) ->
   while true
-    io.stdout\write "#{msg} [Y/n]: "
+    io.stdout\write colors "#{msg} [Y/n]: "
     line = io.stdin\read "*l"
     return false if line == "n"
     return true if line == "Y"
@@ -34,7 +36,7 @@ actions = {
     api = Api @
     rockspec = load_rockspec fname
 
-    print "Sending #{fname}..."
+    print colors "%{cyan}Sending%{reset} #{fname}..."
 
     res = api\method "check_rockspec", {
       package: rockspec.package
@@ -45,7 +47,7 @@ actions = {
       print "Will create new module. (#{rockspec.package})"
 
     if res.version
-      print "A version of this module already exists. (#{rockspec.package} #{rockspec.version})"
+      print colors "%{bright yellow}A version of this module already exists.%{reset} (#{rockspec.package} #{rockspec.version})"
       return unless prompt "Overwite existing rockspec?"
     else
       print "Will create new version. (#{rockspec.version})"
@@ -53,7 +55,7 @@ actions = {
     res = api\method "upload", nil, rockspec_file: File(fname)
 
     if res.module_url
-      print "Rockspec uploaded: #{res.module_url}"
+      print colors "%{bright green}Rockspec uploaded:%{reset} #{res.module_url}"
 }
 
 run = (params, flags) ->
