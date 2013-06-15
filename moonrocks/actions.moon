@@ -54,6 +54,9 @@ actions = {
 
     res = api\method "upload", nil, rockspec_file: File(fname)
 
+    if res.is_new and #res.manifests == 0
+      print colors "%{bright yellow}Warning: module not added to root manifest due to name taken"
+
     if res.module_url
       print colors "%{bright green}Rockspec uploaded:%{reset} #{res.module_url}"
 }
