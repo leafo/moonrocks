@@ -26,7 +26,7 @@ class Api
 
   login: =>
     print colors "%{bright yellow}You need an API key to continue."
-    print "Navigate to http://#{@config.server}/settings and create a new key."
+    print "Navigate to http://#{@config.server}/settings to get a key."
     while true
       io.stdout\write "Paste API key: "
       key = io.stdin\read "*l"
@@ -48,6 +48,9 @@ class Api
   method: (...) =>
     with res = @raw_method ...
       if res.errors
+        if res.errors[1] == "Invalid key"
+          res.errors[1] ..= " (run `moonrocks login` to change)"
+
         msg = table.concat res.errors, ", "
         error "API Failed: " .. msg
 
