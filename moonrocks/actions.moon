@@ -53,13 +53,13 @@ actions = {
     }
 
     unless res.module
-      print "Will create new module. (#{rockspec.package})"
+      print colors "%{magenta}Will create new module.%{reset} (#{rockspec.package})"
 
     if res.version
       print colors "%{bright yellow}A version of this module already exists.%{reset} (#{rockspec.package} #{rockspec.version})"
       return unless prompt "Overwite?"
     else
-      print "Will create new version. (#{rockspec.version})"
+      print colors "%{magenta}Will create new version.%{reset} (#{rockspec.version})"
 
     res = api\method "upload", nil, rockspec_file: File(fname)
 
