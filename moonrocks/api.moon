@@ -5,6 +5,7 @@ import dirname from require "pl.path"
 
 import concat from table
 
+colors = require "ansicolors"
 pretty = require "pl.pretty"
 multipart = require "moonrocks.multipart"
 
@@ -17,6 +18,7 @@ class Api
   new: (flags={}, name="config") =>
     @config_fname = appfile(name) .. ".lua"
     @server = flags.server
+    @debug = flags.debug
     @config = setmetatable {}, __index: @
     @read!
 
@@ -69,13 +71,20 @@ class Api
         headers["Content-length"] = #body
         headers["Content-type"] = "multipart/form-data; boundary=#{boundary}"
 
+      method = post_params and "POST" or "GET"
+
+      if @debug
+        io.stdout\write colors "%{yellow}[#{method}]%{reset} #{url} ... "
+
       out = {}
       _, status = http.request {
-        :url, :headers
-        method: post_params and "POST" or "GET"
+        :url, :headers, :method
         sink: ltn12.sink.table out
         source: body and ltn12.source.string body
       }
+
+      if @debug
+        print colors "%{green}#{status}"
 
       assert status == 200, "API returned #{status} - #{url}"
       json.decode concat out
