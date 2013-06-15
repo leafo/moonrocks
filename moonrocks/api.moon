@@ -31,7 +31,7 @@ class Api
       key = io.stdin\read "*l"
       break if key == ""
       @config.key = key
-      res = @method "status"
+      res = @raw_method "status"
       if errors = res.errors
         print "Server says: #{errors[1]}"
       else
@@ -42,13 +42,20 @@ class Api
     else
       print "Aborting"
 
-  method: do
+
+  method: (...) =>
+    with res = @raw_method ...
+      if res.errors
+        msg = table.concat res.errors, ", "
+        error "API Failed: " .. msg
+
+  raw_method: do
     http = require "socket.http"
     ltn12 = require "ltn12"
     json = require "cjson"
 
     (path, params, post_params=nil) =>
-      assert @config.key, "Must have api key before performing any actions"
+      assert @config.key, "Must have API key before performing any actions"
 
       local body
       headers = {}
