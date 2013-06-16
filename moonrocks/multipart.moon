@@ -10,7 +10,7 @@ class File
     unless @_mime
       pcall ->
         mimetypes = require "mimetypes"
-        mimetypes.guess @fname
+        @_mime = mimetypes.guess @fname
       @_mime = "application/octet-stream" unless @_mime
     @_mime
 
