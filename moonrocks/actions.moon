@@ -29,8 +29,23 @@ actions = {
     api = Api @
     api\login!
 
+  help: =>
+
   install: =>
-    error "TODO"
+    escaped_args = for arg in *@original_args
+      -- hope this is good enough ;)
+      if arg\match "%s"
+        "'" ..arg\gsub("'", "'\'") .. "'"
+      else
+        arg
+
+    server = Api.server
+    server = "http://" .. server unless server\match "^%w+://"
+
+    table.insert escaped_args, 1, "--server=#{server}"
+
+    cmd = "luarocks #{table.concat escaped_args, " "}"
+    os.execute cmd
 
   upload: (fname) =>
     api = Api @
