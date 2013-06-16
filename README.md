@@ -64,6 +64,17 @@ is not configured.
 
 Your API key is stored in `USER_HOME/.moonrocks/config.lua`.
 
+
+## Dependencies
+
+Thanks to the following libraries:
+
+* [Penlight](https://github.com/stevedonovan/Penlight)
+* [ansicolors](https://github.com/kikito/ansicolors.lua)
+* [luasocket](http://w3.impa.br/~diego/software/luasocket/)
+* [lua-cjson](http://www.kyne.com.au/~mark/software/lua-cjson.php)
+
+
 ## License (MIT)
 
 Copyright (C) 2013 by Leaf Corcoran
