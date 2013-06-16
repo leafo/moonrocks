@@ -52,6 +52,22 @@ do
         return false
       end
     end,
+    check_version = function(self)
+      local tool_version = require("moonrocks.version")
+      if not (self._server_tool_version) then
+        local res = self:request("http://" .. tostring(self.config.server) .. "/api/tool_version", {
+          current = tool_version
+        })
+        self._server_tool_version = assert(res.version, "failed to fetch tool version")
+        if res.force_update then
+          print(colors("%{bright red}Error:%{reset} Your moonrocks is too out of date to continue (need " .. tostring(res.version) .. ", have " .. tostring(tool_version) .. ")"))
+          os.exit(1)
+        end
+        if res.version ~= tool_version then
+          return print(colors("%{bright yellow}Warning:%{reset} Your moonrocks is out of date (latest " .. tostring(res.version) .. ", have " .. tostring(tool_version) .. ")"))
+        end
+      end
+    end,
     method = function(self, ...)
       do
         local _with_0 = self:raw_method(...)
@@ -66,18 +82,22 @@ do
         return _with_0
       end
     end,
-    raw_method = (function()
+    raw_method = function(self, path, ...)
+      self:check_version()
+      local url = "http://" .. tostring(self.config.server) .. "/api/" .. tostring(self.config.version) .. "/" .. tostring(self.config.key) .. "/" .. tostring(path)
+      return self:request(url, ...)
+    end,
+    request = (function()
       local http = require("socket.http")
       local ltn12 = require("ltn12")
       local json = require("cjson")
-      return function(self, path, params, post_params)
+      return function(self, url, params, post_params)
         if post_params == nil then
           post_params = nil
         end
         assert(self.config.key, "Must have API key before performing any actions")
         local body
         local headers = { }
-        local url = "http://" .. tostring(self.config.server) .. "/api/" .. tostring(self.config.version) .. "/" .. tostring(self.config.key) .. "/" .. tostring(path)
         if params and next(params) then
           url = url .. ("?" .. encode_query_string(params))
         end

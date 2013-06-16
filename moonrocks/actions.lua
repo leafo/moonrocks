@@ -123,7 +123,9 @@ actions = {
     help = "Set or change api key",
     function(self)
       local api = Api(self)
-      return api:login()
+      if api:login() then
+        return print(colors("%{bright green}Ok"))
+      end
     end
   },
   {
