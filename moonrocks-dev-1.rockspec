@@ -24,6 +24,11 @@ dependencies = {
 build = {
   type = "builtin",
   modules = {
+    ["moonrocks.actions"] = "moonrocks/actions.lua",
+    ["moonrocks.api"] = "moonrocks/api.lua",
+    ["moonrocks.multipart"] = "moonrocks/multipart.lua",
+    ["moonrocks.util"] = "moonrocks/util.lua",
+    ["moonrocks.version"] = "moonrocks/version.lua",
   },
   install = {
     bin = { "bin/moonrocks" }
