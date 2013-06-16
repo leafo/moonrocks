@@ -1,10 +1,13 @@
 
 import Api from require "moonrocks.api"
 import File from require "moonrocks.multipart"
+import columnize from require "moonrocks.util"
 
 colors = require "ansicolors"
 
 pretty = require "pl.pretty"
+
+local *
 
 load_rockspec = (fname) ->
   rockspec = {}
@@ -25,72 +28,110 @@ prompt = (msg) ->
     return true if line == "Y"
 
 actions = {
-  login: =>
-    api = Api @
-    api\login!
+  {
+    name: "help"
+    help: "Show this text"
+    ->
+      print "MoonRocks #{require "moonrocks.version"} (using #{Api.server})"
+      print "usage: moonrocks <action> [arguments]"
 
-  help: =>
+      print!
+      print "Available actions:"
+      print!
+      print columnize [ { t.usage or t.name, t.help } for t in *actions ]
+      print!
+  }
 
-  install: =>
-    escaped_args = for arg in *@original_args
-      -- hope this is good enough ;)
-      if arg\match "%s"
-        "'" ..arg\gsub("'", "'\'") .. "'"
+  {
+    name: "login"
+    help: "Set or change api key"
+
+    =>
+      api = Api @
+      api\login!
+  }
+
+  {
+    name: "install"
+    help: "Install a rock using `luarocks`, sets server to rocks.moonscript.org"
+    =>
+      escaped_args = for arg in *@original_args
+        -- hope this is good enough ;)
+        if arg\match "%s"
+          "'" ..arg\gsub("'", "'\'") .. "'"
+        else
+          arg
+
+      server = Api.server
+      server = "http://" .. server unless server\match "^%w+://"
+
+      table.insert escaped_args, 1, "--server=#{server}"
+
+      cmd = "luarocks #{table.concat escaped_args, " "}"
+      os.execute cmd
+  }
+
+  {
+    name: "upload"
+    usage: "upload <rockspec>"
+    help: "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock"
+
+    (fname) =>
+      unless fname
+        error "missing rockspec (moonrocks #{get_action"upload".usage})"
+
+      assert fname, "missing rockspec (moonrocks upload my-package.rockspec)"
+      api = Api @
+      rockspec = load_rockspec fname
+
+      rock_fname = unless @["skip-pack"]
+        print colors "%{cyan}Packing %{reset}#{rockspec.package}"
+        ret = os.execute "luarocks pack '#{fname}'"
+        unless ret == 0
+          print colors "%{bright red}Failed to pack source rock!%{reset} (--skip-pack to disable)"
+          return
+
+        fname\gsub "rockspec$", "src.rock"
+
+      print colors "%{cyan}Sending%{reset} #{fname}..."
+
+      res = api\method "check_rockspec", {
+        package: rockspec.package
+        version: rockspec.version
+      }
+
+      unless res.module
+        print colors "%{magenta}Will create new module.%{reset} (#{rockspec.package})"
+
+      if res.version
+        print colors "%{bright yellow}A version of this module already exists.%{reset} (#{rockspec.package} #{rockspec.version})"
+        return unless prompt "Overwite?"
       else
-        arg
+        print colors "%{magenta}Will create new version.%{reset} (#{rockspec.version})"
 
-    server = Api.server
-    server = "http://" .. server unless server\match "^%w+://"
+      res = api\method "upload", nil, rockspec_file: File(fname)
 
-    table.insert escaped_args, 1, "--server=#{server}"
+      if res.is_new and #res.manifests == 0
+        print colors "%{bright yellow}Warning: module not added to root manifest due to name taken"
 
-    cmd = "luarocks #{table.concat escaped_args, " "}"
-    os.execute cmd
+      if rock_fname
+        print colors "%{cyan}Sending%{reset} #{rock_fname}..."
+        api\method "upload_rock/#{res.version.id}", nil, rock_file: File(rock_fname)
 
-  upload: (fname) =>
-    api = Api @
-    rockspec = load_rockspec fname
+      print colors "%{bright green}Success:%{reset} #{res.module_url}"
 
-    rock_fname = unless @["skip-pack"]
-      print colors "%{cyan}Packing %{reset}#{rockspec.package}"
-      ret = os.execute "luarocks pack '#{fname}'"
-      unless ret == 0
-        print colors "%{bright red}Failed to pack source rock!%{reset} (--skip-pack to disable)"
-        return
-
-      fname\gsub "rockspec$", "src.rock"
-
-    print colors "%{cyan}Sending%{reset} #{fname}..."
-
-    res = api\method "check_rockspec", {
-      package: rockspec.package
-      version: rockspec.version
-    }
-
-    unless res.module
-      print colors "%{magenta}Will create new module.%{reset} (#{rockspec.package})"
-
-    if res.version
-      print colors "%{bright yellow}A version of this module already exists.%{reset} (#{rockspec.package} #{rockspec.version})"
-      return unless prompt "Overwite?"
-    else
-      print colors "%{magenta}Will create new version.%{reset} (#{rockspec.version})"
-
-    res = api\method "upload", nil, rockspec_file: File(fname)
-
-    if res.is_new and #res.manifests == 0
-      print colors "%{bright yellow}Warning: module not added to root manifest due to name taken"
-
-    if rock_fname
-      print colors "%{cyan}Sending%{reset} #{rock_fname}..."
-      api\method "upload_rock/#{res.version.id}", nil, rock_file: File(rock_fname)
-
-    print colors "%{bright green}Success:%{reset} #{res.module_url}"
+  }
 }
+
+get_action = (name) ->
+  for action in *actions
+    if action.name == name
+      return action
 
 run = (params, flags) ->
   action_name = assert params[1], "missing command"
-  fn = assert actions[action_name], "unknown action `#{action_name}`"
+  fn = assert get_action(action_name)[1], "unknown action `#{action_name}`"
+
   params = [p for p in *params[2,]]
 
   xpcall (-> fn flags, unpack params), (err) ->
