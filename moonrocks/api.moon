@@ -45,6 +45,20 @@ class Api
       print colors "%{bright red}Aborting"
       false
 
+  check_version: =>
+    tool_version = require "moonrocks.version"
+    unless @_server_tool_version
+      res = @request "http://#{@config.server}/api/tool_version", current: tool_version
+      @_server_tool_version = assert res.version, "failed to fetch tool version"
+
+      if res.force_update
+        print colors "%{bright red}Error:%{reset} Your moonrocks is too out of date to continue (need #{res.version}, have #{tool_version})"
+        os.exit 1
+
+      if res.version != tool_version
+        print colors "%{bright yellow}Warning:%{reset} Your moonrocks is out of date (latest #{res.version}, have #{tool_version})"
+
+
   method: (...) =>
     with res = @raw_method ...
       if res.errors
@@ -54,18 +68,22 @@ class Api
         msg = table.concat res.errors, ", "
         error "API Failed: " .. msg
 
-  raw_method: do
+  raw_method: (path, ...) =>
+    @check_version!
+    url = "http://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
+    @request url, ...
+
+  request: do
     http = require "socket.http"
     ltn12 = require "ltn12"
     json = require "cjson"
 
-    (path, params, post_params=nil) =>
+    (url, params, post_params=nil) =>
       assert @config.key, "Must have API key before performing any actions"
 
       local body
       headers = {}
 
-      url = "http://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
       if params and next(params)
         url ..= "?" .. encode_query_string params
 

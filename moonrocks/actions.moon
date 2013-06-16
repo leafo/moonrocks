@@ -105,7 +105,8 @@ actions = {
 
     =>
       api = Api @
-      api\login!
+      if api\login!
+        print colors "%{bright green}Ok"
   }
 
   {
