@@ -41,6 +41,9 @@ it will be created, if it already exists the new version will be added to it.
 If a version for that rockspec already exists then you will be prompted to
 overwrite.
 
+This is equivalent to going to <http://rocks.moonscript.org/upload> and
+uploading a rockspec.
+
 By default `upload` will use `luarocks pack` to pack the rockspec into a rock.
 That rock will also be uploaded along with the rockspec. (This creates a src
 rock). If you don't wish to pack and upload a rock then include the flag
