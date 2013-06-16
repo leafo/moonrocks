@@ -39,68 +39,6 @@ prompt = function(msg)
 end
 actions = {
   {
-    name = "help",
-    help = "Show this text",
-    function()
-      print("MoonRocks " .. tostring(require("moonrocks.version")) .. " (using " .. tostring(Api.server) .. ")")
-      print("usage: moonrocks <action> [arguments]")
-      print()
-      print("Available actions:")
-      print()
-      print(columnize((function()
-        local _accum_0 = { }
-        local _len_0 = 1
-        local _list_0 = actions
-        for _index_0 = 1, #_list_0 do
-          local t = _list_0[_index_0]
-          _accum_0[_len_0] = {
-            t.usage or t.name,
-            t.help
-          }
-          _len_0 = _len_0 + 1
-        end
-        return _accum_0
-      end)()))
-      return print()
-    end
-  },
-  {
-    name = "login",
-    help = "Set or change api key",
-    function(self)
-      local api = Api(self)
-      return api:login()
-    end
-  },
-  {
-    name = "install",
-    help = "Install a rock using `luarocks`, sets server to rocks.moonscript.org",
-    function(self)
-      local escaped_args = (function()
-        local _accum_0 = { }
-        local _len_0 = 1
-        local _list_0 = self.original_args
-        for _index_0 = 1, #_list_0 do
-          local arg = _list_0[_index_0]
-          if arg:match("%s") then
-            _accum_0[_len_0] = "'" .. arg:gsub("'", "'\'") .. "'"
-          else
-            _accum_0[_len_0] = arg
-          end
-          _len_0 = _len_0 + 1
-        end
-        return _accum_0
-      end)()
-      local server = Api.server
-      if not (server:match("^%w+://")) then
-        server = "http://" .. server
-      end
-      table.insert(escaped_args, 1, "--server=" .. tostring(server))
-      local cmd = "luarocks " .. tostring(table.concat(escaped_args, " "))
-      return os.execute(cmd)
-    end
-  },
-  {
     name = "upload",
     usage = "upload <rockspec>",
     help = "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock",
@@ -151,6 +89,68 @@ actions = {
       end
       return print(colors("%{bright green}Success:%{reset} " .. tostring(res.module_url)))
     end
+  },
+  {
+    name = "install",
+    help = "Install a rock using `luarocks`, sets server to rocks.moonscript.org",
+    function(self)
+      local escaped_args = (function()
+        local _accum_0 = { }
+        local _len_0 = 1
+        local _list_0 = self.original_args
+        for _index_0 = 1, #_list_0 do
+          local arg = _list_0[_index_0]
+          if arg:match("%s") then
+            _accum_0[_len_0] = "'" .. arg:gsub("'", "'\'") .. "'"
+          else
+            _accum_0[_len_0] = arg
+          end
+          _len_0 = _len_0 + 1
+        end
+        return _accum_0
+      end)()
+      local server = Api.server
+      if not (server:match("^%w+://")) then
+        server = "http://" .. server
+      end
+      table.insert(escaped_args, 1, "--server=" .. tostring(server))
+      local cmd = "luarocks " .. tostring(table.concat(escaped_args, " "))
+      return os.execute(cmd)
+    end
+  },
+  {
+    name = "login",
+    help = "Set or change api key",
+    function(self)
+      local api = Api(self)
+      return api:login()
+    end
+  },
+  {
+    name = "help",
+    help = "Show this text",
+    function()
+      print("MoonRocks " .. tostring(require("moonrocks.version")) .. " (using " .. tostring(Api.server) .. ")")
+      print("usage: moonrocks <action> [arguments]")
+      print()
+      print("Available actions:")
+      print()
+      print(columnize((function()
+        local _accum_0 = { }
+        local _len_0 = 1
+        local _list_0 = actions
+        for _index_0 = 1, #_list_0 do
+          local t = _list_0[_index_0]
+          _accum_0[_len_0] = {
+            t.usage or t.name,
+            t.help
+          }
+          _len_0 = _len_0 + 1
+        end
+        return _accum_0
+      end)()))
+      return print()
+    end
   }
 }
 get_action = function(name)
@@ -163,8 +163,15 @@ get_action = function(name)
   end
 end
 run = function(params, flags)
-  local action_name = assert(params[1], "missing command")
-  local fn = assert(get_action(action_name)[1], "unknown action `" .. tostring(action_name) .. "`")
+  local action_name = params[1] or "help"
+  local action = get_action(action_name)
+  if not (action) then
+    print(colors("%{bright red}Error:%{reset} unknown action `" .. tostring(action_name) .. "`"))
+    run({
+      "help"
+    })
+    return os.exit(1)
+  end
   params = (function()
     local _accum_0 = { }
     local _len_0 = 1
@@ -176,6 +183,7 @@ run = function(params, flags)
     end
     return _accum_0
   end)()
+  local fn = assert(action[1], "action is missing fn")
   return xpcall((function()
     return fn(flags, unpack(params))
   end), function(err)

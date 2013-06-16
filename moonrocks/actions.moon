@@ -29,49 +29,6 @@ prompt = (msg) ->
 
 actions = {
   {
-    name: "help"
-    help: "Show this text"
-    ->
-      print "MoonRocks #{require "moonrocks.version"} (using #{Api.server})"
-      print "usage: moonrocks <action> [arguments]"
-
-      print!
-      print "Available actions:"
-      print!
-      print columnize [ { t.usage or t.name, t.help } for t in *actions ]
-      print!
-  }
-
-  {
-    name: "login"
-    help: "Set or change api key"
-
-    =>
-      api = Api @
-      api\login!
-  }
-
-  {
-    name: "install"
-    help: "Install a rock using `luarocks`, sets server to rocks.moonscript.org"
-    =>
-      escaped_args = for arg in *@original_args
-        -- hope this is good enough ;)
-        if arg\match "%s"
-          "'" ..arg\gsub("'", "'\'") .. "'"
-        else
-          arg
-
-      server = Api.server
-      server = "http://" .. server unless server\match "^%w+://"
-
-      table.insert escaped_args, 1, "--server=#{server}"
-
-      cmd = "luarocks #{table.concat escaped_args, " "}"
-      os.execute cmd
-  }
-
-  {
     name: "upload"
     usage: "upload <rockspec>"
     help: "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock"
@@ -121,6 +78,49 @@ actions = {
       print colors "%{bright green}Success:%{reset} #{res.module_url}"
 
   }
+
+  {
+    name: "install"
+    help: "Install a rock using `luarocks`, sets server to rocks.moonscript.org"
+    =>
+      escaped_args = for arg in *@original_args
+        -- hope this is good enough ;)
+        if arg\match "%s"
+          "'" ..arg\gsub("'", "'\'") .. "'"
+        else
+          arg
+
+      server = Api.server
+      server = "http://" .. server unless server\match "^%w+://"
+
+      table.insert escaped_args, 1, "--server=#{server}"
+
+      cmd = "luarocks #{table.concat escaped_args, " "}"
+      os.execute cmd
+  }
+
+  {
+    name: "login"
+    help: "Set or change api key"
+
+    =>
+      api = Api @
+      api\login!
+  }
+
+  {
+    name: "help"
+    help: "Show this text"
+    ->
+      print "MoonRocks #{require "moonrocks.version"} (using #{Api.server})"
+      print "usage: moonrocks <action> [arguments]"
+
+      print!
+      print "Available actions:"
+      print!
+      print columnize [ { t.usage or t.name, t.help } for t in *actions ]
+      print!
+  }
 }
 
 get_action = (name) ->
@@ -129,11 +129,17 @@ get_action = (name) ->
       return action
 
 run = (params, flags) ->
-  action_name = assert params[1], "missing command"
-  fn = assert get_action(action_name)[1], "unknown action `#{action_name}`"
+  action_name = params[1] or "help"
+  action = get_action(action_name)
+
+  unless action
+    print colors "%{bright red}Error:%{reset} unknown action `#{action_name}`"
+    run { "help" }
+    return os.exit 1
 
   params = [p for p in *params[2,]]
 
+  fn = assert action[1], "action is missing fn"
   xpcall (-> fn flags, unpack params), (err) ->
     err = err\match("^.-:.-:.(.*)$") or err unless flags.trace
     msg = colors "%{bright red}Error:%{reset} #{err}"
