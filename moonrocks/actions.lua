@@ -1,17 +1,17 @@
 local Api
 do
-  local _table_0 = require("moonrocks.api")
-  Api = _table_0.Api
+  local _obj_0 = require("moonrocks.api")
+  Api = _obj_0.Api
 end
 local File
 do
-  local _table_0 = require("moonrocks.multipart")
-  File = _table_0.File
+  local _obj_0 = require("moonrocks.multipart")
+  File = _obj_0.File
 end
 local columnize
 do
-  local _table_0 = require("moonrocks.util")
-  columnize = _table_0.columnize
+  local _obj_0 = require("moonrocks.util")
+  columnize = _obj_0.columnize
 end
 local colors = require("ansicolors")
 local pretty = require("pl.pretty")
@@ -94,7 +94,8 @@ actions = {
     name = "install",
     help = "Install a rock using `luarocks`, sets server to rocks.moonscript.org",
     function(self)
-      local escaped_args = (function()
+      local escaped_args
+      do
         local _accum_0 = { }
         local _len_0 = 1
         local _list_0 = self.original_args
@@ -107,8 +108,8 @@ actions = {
           end
           _len_0 = _len_0 + 1
         end
-        return _accum_0
-      end)()
+        escaped_args = _accum_0
+      end
       local server = Api.server
       if not (server:match("^%w+://")) then
         server = "http://" .. server
@@ -140,9 +141,8 @@ actions = {
       print(columnize((function()
         local _accum_0 = { }
         local _len_0 = 1
-        local _list_0 = actions
-        for _index_0 = 1, #_list_0 do
-          local t = _list_0[_index_0]
+        for _index_0 = 1, #actions do
+          local t = actions[_index_0]
           _accum_0[_len_0] = {
             t.usage or t.name,
             t.help
@@ -156,9 +156,8 @@ actions = {
   }
 }
 get_action = function(name)
-  local _list_0 = actions
-  for _index_0 = 1, #_list_0 do
-    local action = _list_0[_index_0]
+  for _index_0 = 1, #actions do
+    local action = actions[_index_0]
     if action.name == name then
       return action
     end
@@ -174,17 +173,16 @@ run = function(params, flags)
     })
     return os.exit(1)
   end
-  params = (function()
+  do
     local _accum_0 = { }
     local _len_0 = 1
-    local _list_0 = params
-    for _index_0 = 2, #_list_0 do
-      local p = _list_0[_index_0]
+    for _index_0 = 2, #params do
+      local p = params[_index_0]
       _accum_0[_len_0] = p
       _len_0 = _len_0 + 1
     end
-    return _accum_0
-  end)()
+    params = _accum_0
+  end
   local fn = assert(action[1], "action is missing fn")
   return xpcall((function()
     return fn(flags, unpack(params))

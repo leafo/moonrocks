@@ -1,23 +1,25 @@
 #!/usr/bin/env lua
 local parse_args
 do
-  local _table_0 = require("pl.app")
-  parse_args = _table_0.parse_args
+  local _obj_0 = require("pl.app")
+  parse_args = _obj_0.parse_args
 end
 local run
 do
-  local _table_0 = require("moonrocks.actions")
-  run = _table_0.run
+  local _obj_0 = require("moonrocks.actions")
+  run = _obj_0.run
 end
-local original_args = (function()
+local original_args
+do
   local _tbl_0 = { }
   for k, v in pairs(arg) do
     _tbl_0[k] = v
   end
-  return _tbl_0
-end)()
+  original_args = _tbl_0
+end
 local flags = parse_args()
-local params = (function(...)
+local params
+do
   local _accum_0 = { }
   local _len_0 = 1
   local _list_0 = {
@@ -30,8 +32,8 @@ local params = (function(...)
       _len_0 = _len_0 + 1
     end
   end
-  return _accum_0
-end)(...)
+  params = _accum_0
+end
 flags.original_args = original_args
 return run(params, flags)
 -- vim: set filetype=lua:

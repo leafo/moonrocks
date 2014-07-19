@@ -8,4 +8,4 @@ build::
 	chmod +x bin/moonrocks
 
 local: build
-	luarocks make --local
+	luarocks make --local moonrocks-dev-1.rockspec

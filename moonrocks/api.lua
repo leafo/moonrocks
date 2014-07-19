@@ -1,26 +1,29 @@
 local appfile
 do
-  local _table_0 = require("pl.app")
-  appfile = _table_0.appfile
+  local _obj_0 = require("pl.app")
+  appfile = _obj_0.appfile
 end
 local makepath
 do
-  local _table_0 = require("pl.dir")
-  makepath = _table_0.makepath
+  local _obj_0 = require("pl.dir")
+  makepath = _obj_0.makepath
 end
 local dirname
 do
-  local _table_0 = require("pl.path")
-  dirname = _table_0.dirname
+  local _obj_0 = require("pl.path")
+  dirname = _obj_0.dirname
 end
-local concat = table.concat
+local concat
+do
+  local _obj_0 = table
+  concat = _obj_0.concat
+end
 local colors = require("ansicolors")
 local pretty = require("pl.pretty")
 local multipart = require("moonrocks.multipart")
 local encode_query_string
 local Api
 do
-  local _parent_0 = nil
   local _base_0 = {
     server = "rocks.moonscript.org",
     version = "1",
@@ -70,8 +73,7 @@ do
     end,
     method = function(self, ...)
       do
-        local _with_0 = self:raw_method(...)
-        local res = _with_0
+        local res = self:raw_method(...)
         if res.errors then
           if res.errors[1] == "Invalid key" then
             res.errors[1] = res.errors[1] .. " (run `moonrocks login` to change)"
@@ -79,7 +81,7 @@ do
           local msg = table.concat(res.errors, ", ")
           error("API Failed: " .. msg)
         end
-        return _with_0
+        return res
       end
     end,
     raw_method = function(self, path, ...)
@@ -152,9 +154,6 @@ do
     end
   }
   _base_0.__index = _base_0
-  if _parent_0 then
-    setmetatable(_base_0, _parent_0.__base)
-  end
   local _class_0 = setmetatable({
     __init = function(self, flags, name)
       if flags == nil then
@@ -175,17 +174,9 @@ do
       end
     end,
     __base = _base_0,
-    __name = "Api",
-    __parent = _parent_0
+    __name = "Api"
   }, {
-    __index = function(cls, name)
-      local val = rawget(_base_0, name)
-      if val == nil and _parent_0 then
-        return _parent_0[name]
-      else
-        return val
-      end
-    end,
+    __index = _base_0,
     __call = function(cls, ...)
       local _self_0 = setmetatable({}, _base_0)
       cls.__init(_self_0, ...)
@@ -193,9 +184,6 @@ do
     end
   })
   _base_0.__class = _class_0
-  if _parent_0 and _parent_0.__inherited then
-    _parent_0.__inherited(_parent_0, _class_0)
-  end
   Api = _class_0
 end
 do
@@ -208,10 +196,7 @@ do
     local buf = { }
     for k, v in pairs(t) do
       if type(k) == "number" and type(v) == "table" then
-        do
-          local _obj_0 = v
-          k, v = _obj_0[1], _obj_0[2]
-        end
+        k, v = v[1], v[2]
       end
       buf[i + 1] = url.escape(k)
       buf[i + 2] = "="
