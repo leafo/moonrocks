@@ -51,13 +51,12 @@ end
 actions = {
   {
     name = "upload",
-    usage = "upload <rockspec>",
-    help = "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock. Development rockspecs will skip uploading packed module by default, pass --upload-rock to force upload.",
+    usage = "upload <rockspec|rock>",
+    help = "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock. Development rockspecs will skip uploading packed module by default, pass --upload-rock to force upload. Can also upload rock for existing module and version.",
     function(self, fname)
       if not (fname) then
         error("missing rockspec (moonrocks " .. tostring(get_action("upload").usage) .. ")")
       end
-      assert(fname, "missing rockspec (moonrocks upload my-package.rockspec)")
       local api = Api(self)
       local module_name, module_version = parse_rock_fname(fname)
       if module_name then
@@ -65,6 +64,9 @@ actions = {
           package = module_name,
           version = module_version
         })
+        if not (res.version) then
+          error("You don't have a module named " .. tostring(module_name) .. " with version " .. tostring(module_version) .. " in your account, did you upload a rockspec yet?")
+        end
         print(colors("%{cyan}Sending%{reset} " .. tostring(fname) .. "..."))
         res = api:method("upload_rock/" .. tostring(res.version.id), nil, {
           rock_file = File(fname)

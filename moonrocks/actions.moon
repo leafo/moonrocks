@@ -42,14 +42,13 @@ prompt = (msg) ->
 actions = {
   {
     name: "upload"
-    usage: "upload <rockspec>"
-    help: "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock. Development rockspecs will skip uploading packed module by default, pass --upload-rock to force upload."
+    usage: "upload <rockspec|rock>"
+    help: "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock. Development rockspecs will skip uploading packed module by default, pass --upload-rock to force upload. Can also upload rock for existing module and version."
 
     (fname) =>
       unless fname
         error "missing rockspec (moonrocks #{get_action"upload".usage})"
 
-      assert fname, "missing rockspec (moonrocks upload my-package.rockspec)"
       api = Api @
 
       -- see if just uploading rock
@@ -59,6 +58,9 @@ actions = {
           package: module_name
           version: module_version
         }
+
+        unless res.version
+          error "You don't have a module named #{module_name} with version #{module_version} in your account, did you upload a rockspec yet?"
 
         print colors "%{cyan}Sending%{reset} #{fname}..."
         res = api\method "upload_rock/#{res.version.id}", nil, rock_file: File(fname)
