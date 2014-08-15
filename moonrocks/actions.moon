@@ -11,7 +11,10 @@ local *
 
 load_rockspec = (fname) ->
   rockspec = {}
-  fn = assert loadfile fname
+  fn, err = loadfile fname
+  unless fn
+    error "failed to load rockspec `#{fname}`: #{err}"
+
   setfenv fn, rockspec
   assert pcall fn
 
@@ -19,6 +22,15 @@ load_rockspec = (fname) ->
   assert rockspec.version, "Invalid rockspec `#{fname} `(missing version)"
 
   rockspec
+
+parse_rock_fname = (fname) ->
+  base = fname\match "([^/]+)%.rock$"
+  unless base
+    return nil, "not rock"
+
+  base\match "^(.-)-([^-]+-[^-]+)%.([^.]+)$"
+
+parse
 
 prompt = (msg) ->
   while true
@@ -39,6 +51,20 @@ actions = {
 
       assert fname, "missing rockspec (moonrocks upload my-package.rockspec)"
       api = Api @
+
+      -- see if just uploading rock
+      module_name, module_version = parse_rock_fname fname
+      if module_name
+        res = api\method "check_rockspec", {
+          package: module_name
+          version: module_version
+        }
+
+        print colors "%{cyan}Sending%{reset} #{fname}..."
+        res = api\method "upload_rock/#{res.version.id}", nil, rock_file: File(fname)
+        print colors "%{bright green}Success:%{reset} #{res.module_url}"
+        return
+
       rockspec = load_rockspec fname
 
       rock_fname = unless @["skip-pack"]

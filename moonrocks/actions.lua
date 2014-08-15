@@ -15,16 +15,27 @@ do
 end
 local colors = require("ansicolors")
 local pretty = require("pl.pretty")
-local load_rockspec, prompt, actions, get_action, run
+local load_rockspec, parse_rock_fname, prompt, actions, get_action, run
 load_rockspec = function(fname)
   local rockspec = { }
-  local fn = assert(loadfile(fname))
+  local fn, err = loadfile(fname)
+  if not (fn) then
+    error("failed to load rockspec `" .. tostring(fname) .. "`: " .. tostring(err))
+  end
   setfenv(fn, rockspec)
   assert(pcall(fn))
   assert(rockspec.package, "Invalid rockspec `" .. tostring(fname) .. "` (missing package)")
   assert(rockspec.version, "Invalid rockspec `" .. tostring(fname) .. " `(missing version)")
   return rockspec
 end
+parse_rock_fname = function(fname)
+  local base = fname:match("([^/]+)%.rock$")
+  if not (base) then
+    return nil, "not rock"
+  end
+  return base:match("^(.-)-([^-]+-[^-]+)%.([^.]+)$")
+end
+local _ = parse
 prompt = function(msg)
   while true do
     io.stdout:write(colors(tostring(msg) .. " [Y/n]: "))
@@ -48,6 +59,19 @@ actions = {
       end
       assert(fname, "missing rockspec (moonrocks upload my-package.rockspec)")
       local api = Api(self)
+      local module_name, module_version = parse_rock_fname(fname)
+      if module_name then
+        local res = api:method("check_rockspec", {
+          package = module_name,
+          version = module_version
+        })
+        print(colors("%{cyan}Sending%{reset} " .. tostring(fname) .. "..."))
+        res = api:method("upload_rock/" .. tostring(res.version.id), nil, {
+          rock_file = File(fname)
+        })
+        print(colors("%{bright green}Success:%{reset} " .. tostring(res.module_url)))
+        return 
+      end
       local rockspec = load_rockspec(fname)
       local rock_fname
       if not (self["skip-pack"]) then
