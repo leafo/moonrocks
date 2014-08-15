@@ -41,7 +41,7 @@ actions = {
   {
     name = "upload",
     usage = "upload <rockspec>",
-    help = "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock",
+    help = "Pack source rock, upload rockspec and source rock to server. Pass --skip-pack to skip sending source rock. Development rockspecs will skip uploading packed module by default, pass --upload-rock to force upload.",
     function(self, fname)
       if not (fname) then
         error("missing rockspec (moonrocks " .. tostring(get_action("upload").usage) .. ")")
@@ -81,7 +81,9 @@ actions = {
       if res.is_new and #res.manifests == 0 then
         print(colors("%{bright yellow}Warning: module not added to root manifest due to name taken"))
       end
-      if rock_fname then
+      if res.version.development and not self["upload-rock"] then
+        print(colors("%{cyan}Skipping uploading rock for development version%{reset}"))
+      elseif rock_fname then
         print(colors("%{cyan}Sending%{reset} " .. tostring(rock_fname) .. "..."))
         api:method("upload_rock/" .. tostring(res.version.id), nil, {
           rock_file = File(rock_fname)
