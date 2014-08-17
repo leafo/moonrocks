@@ -36,8 +36,9 @@ prompt = (msg) ->
   while true
     io.stdout\write colors "#{msg} [Y/n]: "
     line = io.stdin\read "*l"
+    return true if line == ""
     return false if line == "n"
-    return true if line == "Y"
+    return true if line\lower! == "y"
 
 actions = {
   {

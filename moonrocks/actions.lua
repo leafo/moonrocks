@@ -40,10 +40,13 @@ prompt = function(msg)
   while true do
     io.stdout:write(colors(tostring(msg) .. " [Y/n]: "))
     local line = io.stdin:read("*l")
+    if line == "" then
+      return true
+    end
     if line == "n" then
       return false
     end
-    if line == "Y" then
+    if line:lower() == "y" then
       return true
     end
   end
