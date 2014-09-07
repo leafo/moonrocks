@@ -1,18 +1,9 @@
 local Api
-do
-  local _obj_0 = require("moonrocks.api")
-  Api = _obj_0.Api
-end
+Api = require("moonrocks.api").Api
 local File
-do
-  local _obj_0 = require("moonrocks.multipart")
-  File = _obj_0.File
-end
+File = require("moonrocks.multipart").File
 local columnize
-do
-  local _obj_0 = require("moonrocks.util")
-  columnize = _obj_0.columnize
-end
+columnize = require("moonrocks.util").columnize
 local colors = require("ansicolors")
 local pretty = require("pl.pretty")
 local load_rockspec, parse_rock_fname, prompt, actions, get_action, run

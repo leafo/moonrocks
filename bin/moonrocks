@@ -1,14 +1,8 @@
 #!/usr/bin/env lua
 local parse_args
-do
-  local _obj_0 = require("pl.app")
-  parse_args = _obj_0.parse_args
-end
+parse_args = require("pl.app").parse_args
 local run
-do
-  local _obj_0 = require("moonrocks.actions")
-  run = _obj_0.run
-end
+run = require("moonrocks.actions").run
 local original_args
 do
   local _tbl_0 = { }

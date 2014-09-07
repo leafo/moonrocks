@@ -1,23 +1,11 @@
 local appfile
-do
-  local _obj_0 = require("pl.app")
-  appfile = _obj_0.appfile
-end
+appfile = require("pl.app").appfile
 local makepath
-do
-  local _obj_0 = require("pl.dir")
-  makepath = _obj_0.makepath
-end
+makepath = require("pl.dir").makepath
 local dirname
-do
-  local _obj_0 = require("pl.path")
-  dirname = _obj_0.dirname
-end
+dirname = require("pl.path").dirname
 local concat
-do
-  local _obj_0 = table
-  concat = _obj_0.concat
-end
+concat = table.concat
 local colors = require("ansicolors")
 local pretty = require("pl.pretty")
 local multipart = require("moonrocks.multipart")
