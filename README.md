@@ -1,14 +1,17 @@
 # `moonrocks`
 
 A command line tool for uploading and installing from the public Lua module
-hosting site, [MoonRocks][1].
+hosting site, [LuaRocks][1].
+
+This tool is no longer necessary as this functionality has been added to the
+main [LuaRocks tool](https://github.com/keplerproject/luarocks/wiki/upload).
 
 ## How To Install
 
 Install using LuaRocks:
 
 ```bash
-$ luarocks install moonrocks --server=http://rocks.moonscript.org
+$ luarocks install moonrocks
 ```
 
 > Add `--local` or `--tree` if you need to install to a different location
@@ -22,7 +25,9 @@ This will give us the command line tool `moonrocks`.
 
 ### `moonrocks install`
 
-`install` is a simple wrapper for running `luarocks install`, excpet that it
+> This command is no longer necessary as rocks.moonrocks.org has become luarocks.org
+
+`install` is a simple wrapper for running `luarocks install`, except that it
 prepends `--server=http://rocks.moonscript.org` to the argument list, ensuring
 that MoonRocks is checked as a module source.
 
