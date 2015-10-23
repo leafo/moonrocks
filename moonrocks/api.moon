@@ -12,7 +12,7 @@ multipart = require "moonrocks.multipart"
 local encode_query_string
 
 class Api
-  server: "rocks.moonscript.org"
+  server: "luarocks.org"
   version: "1"
 
   new: (flags={}, name="config") =>
@@ -26,7 +26,7 @@ class Api
 
   login: =>
     print colors "%{bright yellow}You need an API key to continue."
-    print "Navigate to http://#{@config.server}/settings to get a key."
+    print "Navigate to https://#{@config.server}/settings to get a key."
     while true
       io.stdout\write "Paste API key: "
       key = io.stdin\read "*l"
@@ -48,7 +48,7 @@ class Api
   check_version: =>
     tool_version = require "moonrocks.version"
     unless @_server_tool_version
-      res = @request "http://#{@config.server}/api/tool_version", current: tool_version
+      res = @request "https://#{@config.server}/api/tool_version", current: tool_version
       @_server_tool_version = assert res.version, "failed to fetch tool version"
 
       if res.force_update
@@ -70,7 +70,7 @@ class Api
 
   raw_method: (path, ...) =>
     @check_version!
-    url = "http://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
+    url = "https://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
     @request url, ...
 
   request: do

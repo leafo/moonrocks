@@ -13,11 +13,11 @@ local encode_query_string
 local Api
 do
   local _base_0 = {
-    server = "rocks.moonscript.org",
+    server = "luarocks.org",
     version = "1",
     login = function(self)
       print(colors("%{bright yellow}You need an API key to continue."))
-      print("Navigate to http://" .. tostring(self.config.server) .. "/settings to get a key.")
+      print("Navigate to https://" .. tostring(self.config.server) .. "/settings to get a key.")
       while true do
         io.stdout:write("Paste API key: ")
         local key = io.stdin:read("*l")
@@ -46,7 +46,7 @@ do
     check_version = function(self)
       local tool_version = require("moonrocks.version")
       if not (self._server_tool_version) then
-        local res = self:request("http://" .. tostring(self.config.server) .. "/api/tool_version", {
+        local res = self:request("https://" .. tostring(self.config.server) .. "/api/tool_version", {
           current = tool_version
         })
         self._server_tool_version = assert(res.version, "failed to fetch tool version")
@@ -74,7 +74,7 @@ do
     end,
     raw_method = function(self, path, ...)
       self:check_version()
-      local url = "http://" .. tostring(self.config.server) .. "/api/" .. tostring(self.config.version) .. "/" .. tostring(self.config.key) .. "/" .. tostring(path)
+      local url = "https://" .. tostring(self.config.server) .. "/api/" .. tostring(self.config.version) .. "/" .. tostring(self.config.key) .. "/" .. tostring(path)
       return self:request(url, ...)
     end,
     request = (function()

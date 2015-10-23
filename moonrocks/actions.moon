@@ -122,7 +122,7 @@ actions = {
           arg
 
       server = Api.server
-      server = "http://" .. server unless server\match "^%w+://"
+      server = "https://" .. server unless server\match "^%w+://"
 
       table.insert escaped_args, 1, "--server=#{server}"
 

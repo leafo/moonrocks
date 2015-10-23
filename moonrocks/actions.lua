@@ -134,7 +134,7 @@ actions = {
       end
       local server = Api.server
       if not (server:match("^%w+://")) then
-        server = "http://" .. server
+        server = "https://" .. server
       end
       table.insert(escaped_args, 1, "--server=" .. tostring(server))
       local cmd = "luarocks " .. tostring(table.concat(escaped_args, " "))
