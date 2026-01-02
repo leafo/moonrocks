@@ -15,6 +15,7 @@ description = {
 
 dependencies = {
   "lua ~> 5.1",
+  "argparse",
   "penlight >= 1.1.0",
   "ansicolors",
   "luasocket",

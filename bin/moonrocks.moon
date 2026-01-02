@@ -1,14 +1,47 @@
 #!/usr/bin/env moon
 
-import parse_args from require "pl.app"
-import run from require "moonrocks.actions"
+argparse = require "argparse"
+import Api from require "moonrocks.api"
+version = require "moonrocks.version"
+colors = require "ansicolors"
 
-original_args = { k,v for k,v in pairs(arg) }
+import upload, login from require "moonrocks.actions"
 
-flags = parse_args!
-params = [arg for arg in *{...} when not arg\match "^%-"]
+parser = argparse "moonrocks", "MoonRocks #{version} (using #{Api.server})"
+parser\require_command false
+parser\command_target "action"
 
-flags.original_args = original_args
-run params, flags
+parser\flag "--trace", "Show full traceback on errors"
+parser\option "--server", "Custom server URL"
+parser\flag "--debug", "Enable debug output"
+
+with parser\command "upload", "Pack and upload rockspec/rock to server"
+  \argument "file", "Rockspec or rock file to upload"
+  \flag "--skip-pack", "Skip packing source rock"
+  \flag "--upload-rock", "Force uploading rock for development versions"
+
+parser\command "login", "Set or change API key"
+
+args = parser\parse!
+
+run_action = ->
+  switch args.action
+    when "upload"
+      upload args
+    when "login"
+      login args
+    else
+      print parser\get_help!
+
+xpcall run_action, (err) ->
+  err = err\match("^.-:.-:.(.*)$") or err unless args.trace
+  msg = colors "%{bright red}Error:%{reset} #{err}"
+  if args.trace
+    print debug.traceback msg, 2
+  else
+    print msg
+    print " * Run with --trace to see traceback"
+    print " * Report issues to https://github.com/leafo/moonrocks/issues"
+  os.exit 1
 
 -- vim: set filetype=moon:

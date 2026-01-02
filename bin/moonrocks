@@ -1,33 +1,51 @@
 #!/usr/bin/env lua
-local parse_args
-parse_args = require("pl.app").parse_args
-local run
-run = require("moonrocks.actions").run
-local original_args
+local argparse = require("argparse")
+local Api
+Api = require("moonrocks.api").Api
+local version = require("moonrocks.version")
+local colors = require("ansicolors")
+local upload, login
 do
-  local _tbl_0 = { }
-  for k, v in pairs(arg) do
-    _tbl_0[k] = v
-  end
-  original_args = _tbl_0
+  local _obj_0 = require("moonrocks.actions")
+  upload, login = _obj_0.upload, _obj_0.login
 end
-local flags = parse_args()
-local params
+local parser = argparse("moonrocks", "MoonRocks " .. tostring(version) .. " (using " .. tostring(Api.server) .. ")")
+parser:require_command(false)
+parser:command_target("action")
+parser:flag("--trace", "Show full traceback on errors")
+parser:option("--server", "Custom server URL")
+parser:flag("--debug", "Enable debug output")
 do
-  local _accum_0 = { }
-  local _len_0 = 1
-  local _list_0 = {
-    ...
-  }
-  for _index_0 = 1, #_list_0 do
-    local arg = _list_0[_index_0]
-    if not arg:match("^%-") then
-      _accum_0[_len_0] = arg
-      _len_0 = _len_0 + 1
-    end
-  end
-  params = _accum_0
+  local _with_0 = parser:command("upload", "Pack and upload rockspec/rock to server")
+  _with_0:argument("file", "Rockspec or rock file to upload")
+  _with_0:flag("--skip-pack", "Skip packing source rock")
+  _with_0:flag("--upload-rock", "Force uploading rock for development versions")
 end
-flags.original_args = original_args
-return run(params, flags)
+parser:command("login", "Set or change API key")
+local args = parser:parse()
+local run_action
+run_action = function()
+  local _exp_0 = args.action
+  if "upload" == _exp_0 then
+    return upload(args)
+  elseif "login" == _exp_0 then
+    return login(args)
+  else
+    return print(parser:get_help())
+  end
+end
+return xpcall(run_action, function(err)
+  if not (args.trace) then
+    err = err:match("^.-:.-:.(.*)$") or err
+  end
+  local msg = colors("%{bright red}Error:%{reset} " .. tostring(err))
+  if args.trace then
+    print(debug.traceback(msg, 2))
+  else
+    print(msg)
+    print(" * Run with --trace to see traceback")
+    print(" * Report issues to https://github.com/leafo/moonrocks/issues")
+  end
+  return os.exit(1)
+end)
 -- vim: set filetype=lua:
