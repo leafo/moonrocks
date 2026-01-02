@@ -7,6 +7,7 @@ end
 math.randomseed(os.time())
 local File
 do
+  local _class_0
   local _base_0 = {
     mime = function(self)
       if not (self._mime) then
@@ -34,7 +35,7 @@ do
     end
   }
   _base_0.__index = _base_0
-  local _class_0 = setmetatable({
+  _class_0 = setmetatable({
     __init = function(self, fname, _mime)
       self.fname, self._mime = fname, _mime
     end,
@@ -104,7 +105,8 @@ encode = function(params)
       }
       local content
       if type(v) == "table" and v.__class == File then
-        buffer[1] = buffer[1] .. ('; filename="' .. v.fname .. '"')
+        local _update_0 = 1
+        buffer[_update_0] = buffer[_update_0] .. ('; filename="' .. v.fname .. '"')
         insert(buffer, "Content-type: " .. tostring(v:mime()))
         content = v:content()
       else

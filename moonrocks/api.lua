@@ -12,6 +12,7 @@ local multipart = require("moonrocks.multipart")
 local encode_query_string
 local Api
 do
+  local _class_0
   local _base_0 = {
     server = "luarocks.org",
     version = "1",
@@ -64,7 +65,8 @@ do
         local res = self:raw_method(...)
         if res.errors then
           if res.errors[1] == "Invalid key" then
-            res.errors[1] = res.errors[1] .. " (run `moonrocks login` to change)"
+            local _update_0 = 1
+            res.errors[_update_0] = res.errors[_update_0] .. " (run `moonrocks login` to change)"
           end
           local msg = table.concat(res.errors, ", ")
           error("API Failed: " .. msg)
@@ -142,7 +144,7 @@ do
     end
   }
   _base_0.__index = _base_0
-  local _class_0 = setmetatable({
+  _class_0 = setmetatable({
     __init = function(self, flags, name)
       if flags == nil then
         flags = { }
