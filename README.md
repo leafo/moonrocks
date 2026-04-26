@@ -1,84 +1,97 @@
 # `moonrocks`
 
-A command line tool for uploading and installing from the public Lua module
-hosting site, [LuaRocks][1].
+`moonrocks` is a companion CLI to [LuaRocks][1] that serves as a **testbed for
+new luarocks.org integrations** before they're finalized for the main LuaRocks
+CLI. Commands here may eventually be upstreamed; in the meantime the tool is a
+useful place to try out new workflows against the public registry.
 
-This tool is no longer necessary as this functionality has been added to the
-main [LuaRocks tool](https://github.com/keplerproject/luarocks/wiki/upload).
+Current commands:
 
-## How To Install
+* **`outdated`** — given a rockspec and a `luarocks.lock`, report which locked
+  modules have newer versions available on luarocks.org *within the rockspec's
+  version constraints*. Like `npm outdated` or `bundle outdated` for Lua.
+* **`upload`** — pack and upload a rockspec/rock to luarocks.org. Predates the
+  equivalent `luarocks upload`; if you only need to upload, modern LuaRocks
+  does it natively.
 
-Install using LuaRocks:
+## How to install
 
 ```bash
 $ luarocks install moonrocks
 ```
 
-> Add `--local` or `--tree` if you need to install to a different location
+> Add `--local` or `--tree` if you need to install to a different location.
 
-This will give us the command line tool `moonrocks`.
+## Commands
 
-## How To Use
+Run `moonrocks --help` for full options. The current commands are:
 
-`moonrocks` comes with two main commands, `install` and `upload`. You can run
-`moonrocks help` to see help from the command line.
+### `moonrocks outdated [<rockspec>]`
 
-### `moonrocks install`
+Compares the dependency version ranges in your `*.rockspec` against the pinned
+versions in `./luarocks.lock`, then queries luarocks.org for the newest
+available version of each dependency. Reports any module whose locked version
+is behind the latest version that still satisfies the rockspec constraint.
 
-> This command is no longer necessary as rocks.moonrocks.org has become luarocks.org
-
-`install` is a simple wrapper for running `luarocks install`, except that it
-prepends `--server=http://rocks.moonscript.org` to the argument list, ensuring
-that MoonRocks is checked as a module source.
-
-For example, the following two commands are equivalent:
-
-```bash
-$ moonrocks install --local moonscript # install with moonrocks
-
-$ luarocks --server=http://rocks.moonscript.org install --local moonscript # install with luarocks
 ```
+$ moonrocks outdated
+Fetching https://luarocks.org/manifest...
+Package           Current    Wanted   Latest   Constraint
+argparse          0.7.1-1    0.7.2-1  0.7.2-1  (any)
+basexx            (missing)  -        -        (any)
+date              2.2.1-1    2.2.1-2  2.2.1-2  (no constraint)
+lapis-exceptions  2.4.0-1    2.5.0-1  2.5.0-1  ~> 2
+tableshape        2.6.0-1    2.7.0-1  2.7.0-1  >= 2.4
+```
+
+* `Current` is the version pinned in `luarocks.lock`.
+* `Wanted` is the highest version on luarocks.org that satisfies the
+  rockspec's constraint (i.e. what you'd get from a fresh install).
+* `Latest` is the highest version on luarocks.org overall — when this is
+  ahead of `Wanted`, a newer release exists outside the rockspec range, hinting
+  the constraint itself could be relaxed.
+* `Constraint` shows the rockspec's version range. `(no constraint)` means a
+  transitive dependency that's locked but not directly listed in the rockspec.
+
+If no rockspec path is given and the current directory contains exactly one
+`*.rockspec` file, it's used automatically. Constraint parsing and version
+comparison match LuaRocks' own semantics (the relevant code is vendored from
+upstream LuaRocks).
+
+Flags:
+
+* `--all` — show every dependency, not just outdated ones.
+* `--lock <path>` — path to the lock file (default `./luarocks.lock`).
 
 ### `moonrocks upload <rockspec>`
 
-`upload` will upload a rockspec to the server. If the module doesn't exist yet
-it will be created, if it already exists the new version will be added to it.
-If a version for that rockspec already exists then you will be prompted to
-overwrite.
+Uploads a rockspec to luarocks.org. If the module doesn't exist yet it will be
+created; if it does, a new version is added. If the version already exists
+you'll be prompted to overwrite.
 
-This is equivalent to going to <http://rocks.moonscript.org/upload> and
-uploading a rockspec.
+By default `upload` runs `luarocks pack` to build a `.src.rock` and uploads
+that alongside the rockspec. Pass `--skip-pack` to skip the source rock.
 
-By default `upload` will use `luarocks pack` to pack the rockspec into a rock.
-That rock will also be uploaded along with the rockspec. (This creates a src
-rock). If you don't wish to pack and upload a rock then include the flag
-`--skip-pack`
-
-All remote actions (such as uploading a rockspec) require an associated account
-on [MoonRocks][1]. You give access to your account by generating and API key.
-The first time you issue a remote command you will be asked to log in. This
-involves generating an API key at <http://rocks.moonscript.org/settings> and
-pasting it into the tool.
-
+All remote actions require a luarocks.org account and an API key. The first
+time you run a remote command you'll be prompted to paste a key — generate one
+at <https://luarocks.org/settings/api-keys>.
 
 ### `moonrocks login`
 
-You can call `login` to set or replace your API key. You shouldn't normally
-need to call this, `upload` will attempt to log you in automatically if a key
-is not configured.
-
-Your API key is stored in `USER_HOME/.moonrocks/config.lua`.
-
+Set or replace your stored API key. You don't normally need to call this —
+`upload` prompts for a key automatically when one isn't configured. Keys are
+stored in `~/.config/moonrocks/config.lua`.
 
 ## Dependencies
 
-Thanks to the following libraries:
-
-* [Penlight](https://github.com/stevedonovan/Penlight)
+* [argparse](https://github.com/luarocks/argparse)
+* [Penlight](https://github.com/lunarmodules/Penlight)
 * [ansicolors](https://github.com/kikito/ansicolors.lua)
-* [luasocket](http://w3.impa.br/~diego/software/luasocket/)
-* [lua-cjson](http://www.kyne.com.au/~mark/software/lua-cjson.php)
+* [luasocket](https://github.com/lunarmodules/luasocket)
+* [lua-cjson](https://github.com/openresty/lua-cjson)
 
+The `outdated` command's version-comparison code is vendored from
+[LuaRocks](https://github.com/luarocks/luarocks) (MIT-licensed).
 
 ## License (MIT)
 
@@ -102,5 +115,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
- [1]: http://rocks.moonscript.org
-
+ [1]: https://luarocks.org
