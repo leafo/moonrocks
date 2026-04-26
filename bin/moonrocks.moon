@@ -6,6 +6,7 @@ version = require "moonrocks.version"
 colors = require "ansicolors"
 
 import upload, login from require "moonrocks.actions"
+import outdated from require "moonrocks.outdated"
 
 parser = argparse "moonrocks", "MoonRocks #{version} (using #{Api.server})"
 parser\require_command false
@@ -22,6 +23,11 @@ with parser\command "upload", "Pack and upload rockspec/rock to server"
 
 parser\command "login", "Set or change API key"
 
+with parser\command "outdated", "Show outdated locked dependencies"
+  \argument("rockspec", "Path to rockspec (auto-detected if omitted)")\args "?"
+  \option "--lock", "Path to luarocks.lock (default: ./luarocks.lock)"
+  \flag "--all", "Show all dependencies, not just outdated ones"
+
 args = parser\parse!
 
 run_action = ->
@@ -30,6 +36,8 @@ run_action = ->
       upload args
     when "login"
       login args
+    when "outdated"
+      outdated args
     else
       print parser\get_help!
 

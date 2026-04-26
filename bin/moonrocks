@@ -9,6 +9,8 @@ do
   local _obj_0 = require("moonrocks.actions")
   upload, login = _obj_0.upload, _obj_0.login
 end
+local outdated
+outdated = require("moonrocks.outdated").outdated
 local parser = argparse("moonrocks", "MoonRocks " .. tostring(version) .. " (using " .. tostring(Api.server) .. ")")
 parser:require_command(false)
 parser:command_target("action")
@@ -22,6 +24,12 @@ do
   _with_0:flag("--upload-rock", "Force uploading rock for development versions")
 end
 parser:command("login", "Set or change API key")
+do
+  local _with_0 = parser:command("outdated", "Show outdated locked dependencies")
+  _with_0:argument("rockspec", "Path to rockspec (auto-detected if omitted)"):args("?")
+  _with_0:option("--lock", "Path to luarocks.lock (default: ./luarocks.lock)")
+  _with_0:flag("--all", "Show all dependencies, not just outdated ones")
+end
 local args = parser:parse()
 local run_action
 run_action = function()
@@ -30,6 +38,8 @@ run_action = function()
     return upload(args)
   elseif "login" == _exp_0 then
     return login(args)
+  elseif "outdated" == _exp_0 then
+    return outdated(args)
   else
     return print(parser:get_help())
   end

@@ -28,6 +28,8 @@ build = {
     ["moonrocks.actions"] = "moonrocks/actions.lua",
     ["moonrocks.api"] = "moonrocks/api.lua",
     ["moonrocks.multipart"] = "moonrocks/multipart.lua",
+    ["moonrocks.outdated"] = "moonrocks/outdated.lua",
+    ["moonrocks.semver"] = "moonrocks/semver.lua",
     ["moonrocks.util"] = "moonrocks/util.lua",
     ["moonrocks.version"] = "moonrocks/version.lua",
   },
