@@ -42,13 +42,24 @@ find_rockspec_in_cwd = ->
       "\nPass one as argument."
   matches[1]
 
+debug_log = (debug, msg) ->
+  return unless debug
+  io.stderr\write colors "%{dim}[debug]%{reset} #{msg}\n"
+
 local _manifest_cache
-fetch_manifest = ->
+fetch_manifest = (debug=false) ->
   return _manifest_cache if _manifest_cache
   https = require "ssl.https"
-  body, status = https.request MANIFEST_URL
+  debug_log debug, colors "%{yellow}--> GET%{reset} #{MANIFEST_URL}"
+  body, status, response_headers, status_line = https.request MANIFEST_URL
   unless body
     error "failed to fetch #{MANIFEST_URL}: #{status}"
+  if debug
+    debug_log debug, colors "%{green}<-- #{status_line or status}%{reset}"
+    if response_headers
+      for k, v in pairs response_headers
+        debug_log debug, "    #{k}: #{v}"
+    debug_log debug, "    response body: #{#body} bytes"
   unless status == 200
     error "failed to fetch #{MANIFEST_URL}: HTTP #{status}"
   fn, err = loadstring body
@@ -146,7 +157,7 @@ outdated = (args) ->
   locked = load_lockfile lock_fname
 
   io.stderr\write colors "%{cyan}Fetching #{MANIFEST_URL}...%{reset}\n"
-  manifest = fetch_manifest!
+  manifest = fetch_manifest args.debug
 
   -- index rockspec deps by lowercase name
   rockspec_deps = {}

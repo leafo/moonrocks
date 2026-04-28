@@ -87,6 +87,29 @@ class Api
     url = "https://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
     @request url, params, post_params, extra_headers
 
+  debug_log: (msg) =>
+    return unless @debug
+    io.stderr\write colors "%{dim}[debug]%{reset} #{msg}\n"
+
+  redact_url: (url) =>
+    url\gsub "(/api/[^/]+/)([^/]+)/", (prefix, key) ->
+      visible = key\sub 1, 4
+      "#{prefix}#{visible}#{string.rep '*', math.max(0, #key - 4)}/"
+
+  debug_dump_body: (label, body) =>
+    return unless @debug
+    if not body or body == ""
+      @debug_log "#{label}: (empty)"
+      return
+    @debug_log "#{label} (#{#body} bytes):"
+    limit = 4096
+    shown = if #body > limit
+      body\sub(1, limit) .. "\n... (truncated, #{#body - limit} more bytes)"
+    else
+      body
+    for line in shown\gmatch "[^\n]*"
+      io.stderr\write "  #{line}\n"
+
   request: do
     http = require "socket.http"
     ltn12 = require "ltn12"
@@ -105,27 +128,41 @@ class Api
       if params and next(params)
         url ..= "?" .. encode_query_string params
 
+      is_multipart = false
       if post_params
         body, boundary = multipart.encode post_params
         headers["Content-length"] = #body
         headers["Content-type"] = "multipart/form-data; boundary=#{boundary}"
+        is_multipart = true
 
       method = post_params and "POST" or "GET"
 
       if @debug
-        io.stdout\write colors "%{yellow}[#{method}]%{reset} #{url} ... "
+        @debug_log colors "%{yellow}--> #{method}%{reset} #{@redact_url url}"
+        for k, v in pairs headers
+          @debug_log "    #{k}: #{v}"
+        if body
+          if is_multipart
+            @debug_log "    request body: #{#body} bytes (multipart, not shown)"
+          else
+            @debug_dump_body "    request body", body
 
       out = {}
-      _, status = http.request {
+      _, status, response_headers, status_line = http.request {
         :url, :headers, :method
         sink: ltn12.sink.table out
         source: body and ltn12.source.string body
       }
 
-      if @debug
-        print colors "%{green}#{status}"
-
       response_body = concat out
+
+      if @debug
+        @debug_log colors "%{green}<-- #{status_line or status}%{reset}"
+        if response_headers
+          for k, v in pairs response_headers
+            @debug_log "    #{k}: #{v}"
+        @debug_dump_body "    response body", response_body
+
       ok, decoded = pcall json.decode, response_body
       unless ok and type(decoded) == "table"
         error "API returned #{status} - #{url}"

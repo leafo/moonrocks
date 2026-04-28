@@ -91,6 +91,38 @@ do
       local url = "https://" .. tostring(self.config.server) .. "/api/" .. tostring(self.config.version) .. "/" .. tostring(self.config.key) .. "/" .. tostring(path)
       return self:request(url, params, post_params, extra_headers)
     end,
+    debug_log = function(self, msg)
+      if not (self.debug) then
+        return 
+      end
+      return io.stderr:write(colors("%{dim}[debug]%{reset} " .. tostring(msg) .. "\n"))
+    end,
+    redact_url = function(self, url)
+      return url:gsub("(/api/[^/]+/)([^/]+)/", function(prefix, key)
+        local visible = key:sub(1, 4)
+        return tostring(prefix) .. tostring(visible) .. tostring(string.rep('*', math.max(0, #key - 4))) .. "/"
+      end)
+    end,
+    debug_dump_body = function(self, label, body)
+      if not (self.debug) then
+        return 
+      end
+      if not body or body == "" then
+        self:debug_log(tostring(label) .. ": (empty)")
+        return 
+      end
+      self:debug_log(tostring(label) .. " (" .. tostring(#body) .. " bytes):")
+      local limit = 4096
+      local shown
+      if #body > limit then
+        shown = body:sub(1, limit) .. "\n... (truncated, " .. tostring(#body - limit) .. " more bytes)"
+      else
+        shown = body
+      end
+      for line in shown:gmatch("[^\n]*") do
+        io.stderr:write("  " .. tostring(line) .. "\n")
+      end
+    end,
     request = (function()
       local http = require("socket.http")
       local ltn12 = require("ltn12")
@@ -113,28 +145,46 @@ do
         if params and next(params) then
           url = url .. ("?" .. encode_query_string(params))
         end
+        local is_multipart = false
         if post_params then
           local boundary
           body, boundary = multipart.encode(post_params)
           headers["Content-length"] = #body
           headers["Content-type"] = "multipart/form-data; boundary=" .. tostring(boundary)
+          is_multipart = true
         end
         local method = post_params and "POST" or "GET"
         if self.debug then
-          io.stdout:write(colors("%{yellow}[" .. tostring(method) .. "]%{reset} " .. tostring(url) .. " ... "))
+          self:debug_log(colors("%{yellow}--> " .. tostring(method) .. "%{reset} " .. tostring(self:redact_url(url))))
+          for k, v in pairs(headers) do
+            self:debug_log("    " .. tostring(k) .. ": " .. tostring(v))
+          end
+          if body then
+            if is_multipart then
+              self:debug_log("    request body: " .. tostring(#body) .. " bytes (multipart, not shown)")
+            else
+              self:debug_dump_body("    request body", body)
+            end
+          end
         end
         local out = { }
-        local _, status = http.request({
+        local _, status, response_headers, status_line = http.request({
           url = url,
           headers = headers,
           method = method,
           sink = ltn12.sink.table(out),
           source = body and ltn12.source.string(body)
         })
-        if self.debug then
-          print(colors("%{green}" .. tostring(status)))
-        end
         local response_body = concat(out)
+        if self.debug then
+          self:debug_log(colors("%{green}<-- " .. tostring(status_line or status) .. "%{reset}"))
+          if response_headers then
+            for k, v in pairs(response_headers) do
+              self:debug_log("    " .. tostring(k) .. ": " .. tostring(v))
+            end
+          end
+          self:debug_dump_body("    response body", response_body)
+        end
         local ok, decoded = pcall(json.decode, response_body)
         if not (ok and type(decoded) == "table") then
           error("API returned " .. tostring(status) .. " - " .. tostring(url))

@@ -52,16 +52,36 @@ find_rockspec_in_cwd = function()
   end
   return matches[1]
 end
+local debug_log
+debug_log = function(debug, msg)
+  if not (debug) then
+    return 
+  end
+  return io.stderr:write(colors("%{dim}[debug]%{reset} " .. tostring(msg) .. "\n"))
+end
 local _manifest_cache
 local fetch_manifest
-fetch_manifest = function()
+fetch_manifest = function(debug)
+  if debug == nil then
+    debug = false
+  end
   if _manifest_cache then
     return _manifest_cache
   end
   local https = require("ssl.https")
-  local body, status = https.request(MANIFEST_URL)
+  debug_log(debug, colors("%{yellow}--> GET%{reset} " .. tostring(MANIFEST_URL)))
+  local body, status, response_headers, status_line = https.request(MANIFEST_URL)
   if not (body) then
     error("failed to fetch " .. tostring(MANIFEST_URL) .. ": " .. tostring(status))
+  end
+  if debug then
+    debug_log(debug, colors("%{green}<-- " .. tostring(status_line or status) .. "%{reset}"))
+    if response_headers then
+      for k, v in pairs(response_headers) do
+        debug_log(debug, "    " .. tostring(k) .. ": " .. tostring(v))
+      end
+    end
+    debug_log(debug, "    response body: " .. tostring(#body) .. " bytes")
   end
   if not (status == 200) then
     error("failed to fetch " .. tostring(MANIFEST_URL) .. ": HTTP " .. tostring(status))
@@ -239,7 +259,7 @@ outdated = function(args)
   local rockspec = load_rockspec(rockspec_fname)
   local locked = load_lockfile(lock_fname)
   io.stderr:write(colors("%{cyan}Fetching " .. tostring(MANIFEST_URL) .. "...%{reset}\n"))
-  local manifest = fetch_manifest()
+  local manifest = fetch_manifest(args.debug)
   local rockspec_deps = { }
   local _list_0 = (rockspec.dependencies or { })
   for _index_0 = 1, #_list_0 do
