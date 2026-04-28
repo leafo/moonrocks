@@ -61,35 +61,55 @@ do
       end
     end,
     method = function(self, ...)
-      do
-        local res = self:raw_method(...)
-        if res.errors then
-          if res.errors[1] == "Invalid key" then
-            local _update_0 = 1
-            res.errors[_update_0] = res.errors[_update_0] .. " (run `moonrocks login` to change)"
-          end
-          local msg = table.concat(res.errors, ", ")
-          error("API Failed: " .. msg)
+      local res = self:raw_method(...)
+      if res.two_factor_required then
+        assert(self.on_tfa_required, "Server requires two-factor verification but no handler is configured")
+        self:on_tfa_required(self)
+        res = self:raw_method(...)
+        if res.two_factor_required then
+          error("API Failed: two-factor verification required after successful verification")
         end
-        return res
       end
+      if res.errors then
+        if res.errors[1] == "Invalid key" then
+          local _update_0 = 1
+          res.errors[_update_0] = res.errors[_update_0] .. " (run `moonrocks login` to change)"
+        end
+        local msg = table.concat(res.errors, ", ")
+        error("API Failed: " .. msg)
+      end
+      return res
     end,
-    raw_method = function(self, path, ...)
+    raw_method = function(self, path, params, post_params)
       self:check_version()
+      local extra_headers = nil
+      if self.tfa_token then
+        extra_headers = {
+          ["X-TFA-Token"] = self.tfa_token
+        }
+      end
       local url = "https://" .. tostring(self.config.server) .. "/api/" .. tostring(self.config.version) .. "/" .. tostring(self.config.key) .. "/" .. tostring(path)
-      return self:request(url, ...)
+      return self:request(url, params, post_params, extra_headers)
     end,
     request = (function()
       local http = require("socket.http")
       local ltn12 = require("ltn12")
       local json = require("cjson")
-      return function(self, url, params, post_params)
+      return function(self, url, params, post_params, extra_headers)
         if post_params == nil then
           post_params = nil
+        end
+        if extra_headers == nil then
+          extra_headers = nil
         end
         assert(self.config.key, "Must have API key before performing any actions")
         local body
         local headers = { }
+        if extra_headers then
+          for k, v in pairs(extra_headers) do
+            headers[k] = v
+          end
+        end
         if params and next(params) then
           url = url .. ("?" .. encode_query_string(params))
         end
@@ -114,8 +134,15 @@ do
         if self.debug then
           print(colors("%{green}" .. tostring(status)))
         end
-        assert(status == 200, "API returned " .. tostring(status) .. " - " .. tostring(url))
-        return json.decode(concat(out))
+        local response_body = concat(out)
+        local ok, decoded = pcall(json.decode, response_body)
+        if not (ok and type(decoded) == "table") then
+          error("API returned " .. tostring(status) .. " - " .. tostring(url))
+        end
+        if not (status == 200 or decoded.errors or decoded.two_factor_required) then
+          error("API returned " .. tostring(status) .. " - " .. tostring(url))
+        end
+        return decoded
       end
     end)(),
     read = function(self)

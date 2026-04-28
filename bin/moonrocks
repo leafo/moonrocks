@@ -22,6 +22,7 @@ do
   _with_0:argument("file", "Rockspec or rock file to upload")
   _with_0:flag("--skip-pack", "Skip packing source rock")
   _with_0:flag("--upload-rock", "Force uploading rock for development versions")
+  _with_0:option("--code", "Two-factor code (or set $MOONROCKS_TFA_CODE)")
 end
 parser:command("login", "Set or change API key")
 do

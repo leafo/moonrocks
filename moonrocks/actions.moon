@@ -33,10 +33,39 @@ prompt = (msg) ->
     return false if line == "n"
     return true if line\lower! == "y"
 
+prompt_tfa = (api) ->
+  print colors "%{bright yellow}Two-factor authentication required for this account."
+
+  initial = os.getenv("MOONROCKS_TFA_CODE") or api.code
+
+  attempts = 0
+  while true
+    code = initial
+    initial = nil
+
+    unless code
+      io.stdout\write colors "%{cyan}Enter 2FA code:%{reset} "
+      code = io.stdin\read "*l"
+      error "no code provided" unless code and code != ""
+
+    res = api\raw_method "verify_tfa", nil, code: code
+
+    if res.success and res.tfa_token
+      api.tfa_token = res.tfa_token
+      print colors "%{bright green}Verified.%{reset}"
+      return
+
+    attempts += 1
+    err = res.errors and table.concat(res.errors, ", ") or "verification failed"
+    print colors "%{bright red}#{err}%{reset}"
+    error "two-factor verification failed after #{attempts} attempt(s)" if attempts >= 3
+
 upload = (args) ->
   fname = args.file
 
   api = Api args
+  api.code = args.code
+  api.on_tfa_required = prompt_tfa
 
   -- see if just uploading rock
   module_name, module_version = parse_rock_fname fname

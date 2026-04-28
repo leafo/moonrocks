@@ -60,29 +60,47 @@ class Api
 
 
   method: (...) =>
-    with res = @raw_method ...
-      if res.errors
-        if res.errors[1] == "Invalid key"
-          res.errors[1] ..= " (run `moonrocks login` to change)"
+    res = @raw_method ...
 
-        msg = table.concat res.errors, ", "
-        error "API Failed: " .. msg
+    if res.two_factor_required
+      assert @on_tfa_required, "Server requires two-factor verification but no handler is configured"
+      @on_tfa_required @
+      res = @raw_method ...
 
-  raw_method: (path, ...) =>
+      if res.two_factor_required
+        error "API Failed: two-factor verification required after successful verification"
+
+    if res.errors
+      if res.errors[1] == "Invalid key"
+        res.errors[1] ..= " (run `moonrocks login` to change)"
+
+      msg = table.concat res.errors, ", "
+      error "API Failed: " .. msg
+
+    res
+
+  raw_method: (path, params, post_params) =>
     @check_version!
+    extra_headers = nil
+    if @tfa_token
+      extra_headers = { "X-TFA-Token": @tfa_token }
     url = "https://#{@config.server}/api/#{@config.version}/#{@config.key}/#{path}"
-    @request url, ...
+    @request url, params, post_params, extra_headers
 
   request: do
     http = require "socket.http"
     ltn12 = require "ltn12"
     json = require "cjson"
 
-    (url, params, post_params=nil) =>
+    (url, params, post_params=nil, extra_headers=nil) =>
       assert @config.key, "Must have API key before performing any actions"
 
       local body
       headers = {}
+
+      if extra_headers
+        for k, v in pairs extra_headers
+          headers[k] = v
 
       if params and next(params)
         url ..= "?" .. encode_query_string params
@@ -107,8 +125,13 @@ class Api
       if @debug
         print colors "%{green}#{status}"
 
-      assert status == 200, "API returned #{status} - #{url}"
-      json.decode concat out
+      response_body = concat out
+      ok, decoded = pcall json.decode, response_body
+      unless ok and type(decoded) == "table"
+        error "API returned #{status} - #{url}"
+      unless status == 200 or decoded.errors or decoded.two_factor_required
+        error "API returned #{status} - #{url}"
+      decoded
 
 
   read: =>
@@ -147,4 +170,3 @@ encode_query_string = do
     concat buf
 
 { :Api }
-

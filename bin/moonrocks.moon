@@ -20,6 +20,7 @@ with parser\command "upload", "Pack and upload rockspec/rock to server"
   \argument "file", "Rockspec or rock file to upload"
   \flag "--skip-pack", "Skip packing source rock"
   \flag "--upload-rock", "Force uploading rock for development versions"
+  \option "--code", "Two-factor code (or set $MOONROCKS_TFA_CODE)"
 
 parser\command "login", "Set or change API key"
 
