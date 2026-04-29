@@ -34,6 +34,15 @@ load_lockfile = function(fname)
   end
   return data.dependencies
 end
+local file_exists
+file_exists = function(fname)
+  local f = io.open(fname, "r")
+  if not (f) then
+    return false
+  end
+  f:close()
+  return true
+end
 local find_rockspec_in_cwd
 find_rockspec_in_cwd = function()
   local matches = { }
@@ -180,7 +189,10 @@ pad = function(s, n)
   return s
 end
 local print_rows
-print_rows = function(rows, show_all, show_installed)
+print_rows = function(rows, show_all, show_installed, show_current)
+  if show_current == nil then
+    show_current = true
+  end
   local filtered
   if show_all then
     filtered = rows
@@ -199,28 +211,27 @@ print_rows = function(rows, show_all, show_installed)
     end
   end
   if #filtered == 0 then
-    print(colors("%{bright green}All locked dependencies are up to date.%{reset}"))
+    local msg
+    if show_current then
+      msg = "All locked dependencies are up to date."
+    else
+      msg = "All rockspec dependencies are installed and up to date."
+    end
+    print(colors("%{bright green}" .. tostring(msg) .. "%{reset}"))
     return 
   end
-  local headers
-  if show_installed then
-    headers = {
-      "Package",
-      "Current",
-      "Installed",
-      "Wanted",
-      "Latest",
-      "Constraint"
-    }
-  else
-    headers = {
-      "Package",
-      "Current",
-      "Wanted",
-      "Latest",
-      "Constraint"
-    }
+  local headers = {
+    "Package"
+  }
+  if show_current then
+    insert(headers, "Current")
   end
+  if show_installed then
+    insert(headers, "Installed")
+  end
+  insert(headers, "Wanted")
+  insert(headers, "Latest")
+  insert(headers, "Constraint")
   local widths
   do
     local _accum_0 = { }
@@ -235,25 +246,18 @@ print_rows = function(rows, show_all, show_installed)
   local rendered = { }
   for _index_0 = 1, #filtered do
     local r = filtered[_index_0]
-    local row
-    if show_installed then
-      row = {
-        r.name,
-        r.current,
-        r.installed or "(not installed)",
-        r.wanted or "-",
-        r.latest or "-",
-        r.constraint_str
-      }
-    else
-      row = {
-        r.name,
-        r.current,
-        r.wanted or "-",
-        r.latest or "-",
-        r.constraint_str
-      }
+    local row = {
+      r.name
+    }
+    if show_current then
+      insert(row, r.current)
     end
+    if show_installed then
+      insert(row, (r.installed or "(not installed)"))
+    end
+    insert(row, r.wanted or "-")
+    insert(row, r.latest or "-")
+    insert(row, r.constraint_str)
     insert(rendered, row)
   end
   for i, h in ipairs(headers) do
@@ -311,9 +315,27 @@ end
 local outdated
 outdated = function(args)
   local rockspec_fname = args.rockspec or find_rockspec_in_cwd()
-  local lock_fname = args.lock or "luarocks.lock"
   local rockspec = load_rockspec(rockspec_fname)
-  local locked = load_lockfile(lock_fname)
+  local explicit_lock = args.lock ~= nil
+  local lock_fname = args.lock or "luarocks.lock"
+  local no_lock_mode = false
+  if not (file_exists(lock_fname)) then
+    if explicit_lock then
+      error("lock file `" .. tostring(lock_fname) .. "` not found")
+    end
+    if args.installed then
+      no_lock_mode = true
+      io.stderr:write(colors("%{dim}No " .. tostring(lock_fname) .. " found; comparing rockspec to installed packages.%{reset}\n"))
+    else
+      error("no " .. tostring(lock_fname) .. " found in current directory; pass --installed to compare the rockspec against installed packages instead")
+    end
+  end
+  local locked
+  if no_lock_mode then
+    locked = { }
+  else
+    locked = load_lockfile(lock_fname)
+  end
   io.stderr:write(colors("%{cyan}Fetching " .. tostring(MANIFEST_URL) .. "...%{reset}\n"))
   local manifest = fetch_manifest(args.debug)
   local installed_map
@@ -334,78 +356,121 @@ outdated = function(args)
     end
   end
   local rows = { }
-  local seen_in_lock = { }
-  for name, current in pairs(locked) do
-    seen_in_lock[name:lower()] = true
-    local repo_entry = manifest.repository and manifest.repository[name:lower()]
-    local rd = rockspec_deps[name:lower()]
-    local constraints = rd and rd.constraints
-    local locked_is_dev = is_dev_version(current)
-    local wanted, latest = nil, nil
-    if repo_entry then
-      wanted = latest_matching(repo_entry, constraints, locked_is_dev)
-      latest = latest_matching(repo_entry, nil, locked_is_dev)
-    end
-    local constraint_str
-    if rd then
-      if rd.raw_constraint == "" then
-        constraint_str = "(any)"
-      else
-        constraint_str = rd.raw_constraint
+  if no_lock_mode then
+    for lname, rd in pairs(rockspec_deps) do
+      local name = rd.original_name
+      local installed_version = installed_map[lname]
+      local repo_entry = manifest.repository and manifest.repository[lname]
+      local installed_is_dev = installed_version and is_dev_version(installed_version)
+      local wanted, latest = nil, nil
+      if repo_entry then
+        wanted = latest_matching(repo_entry, rd.constraints, installed_is_dev)
+        latest = latest_matching(repo_entry, nil, installed_is_dev)
       end
-    else
-      constraint_str = "(no constraint)"
-    end
-    local installed_version = installed_map and installed_map[name:lower()]
-    local row = {
-      name = name,
-      current = current,
-      wanted = wanted,
-      latest = latest,
-      constraint_str = constraint_str,
-      installed = installed_version,
-      drift = installed_map ~= nil and installed_version ~= current,
-      transitive = rd == nil,
-      on_server = repo_entry ~= nil
-    }
-    if not repo_entry then
-      row.invalid = true
-      row.wanted = "(not on luarocks.org)"
-      row.latest = "-"
-    else
-      if wanted then
-        local cur_pv = parse_version(current)
-        local wanted_pv = parse_version(wanted)
-        row.outdated = cur_pv < wanted_pv
-      elseif constraints and #constraints > 0 then
+      local row = {
+        name = name,
+        wanted = wanted,
+        latest = latest,
+        constraint_str = rd.raw_constraint == "" and "(any)" or rd.raw_constraint,
+        installed = installed_version
+      }
+      if not installed_version then
         row.invalid = true
-        row.wanted = "(no match for constraint)"
-      end
-      if wanted and latest then
-        if parse_version(wanted) < parse_version(latest) then
-          row.behind_rockspec = true
+      elseif not repo_entry then
+        row.invalid = true
+        row.wanted = "(not on luarocks.org)"
+        row.latest = "-"
+      else
+        if wanted then
+          local inst_pv = parse_version(installed_version)
+          local wanted_pv = parse_version(wanted)
+          row.outdated = inst_pv < wanted_pv
+        elseif rd.constraints and #rd.constraints > 0 then
+          row.invalid = true
+          row.wanted = "(no match for constraint)"
+        end
+        if wanted and latest then
+          if parse_version(wanted) < parse_version(latest) then
+            row.behind_rockspec = true
+          end
         end
       end
+      insert(rows, row)
     end
-    insert(rows, row)
-  end
-  for lname, rd in pairs(rockspec_deps) do
-    if not (seen_in_lock[lname]) then
-      insert(rows, {
-        name = rd.original_name,
-        current = "(missing)",
-        wanted = "-",
-        latest = "-",
-        constraint_str = rd.raw_constraint == "" and "(any)" or rd.raw_constraint,
-        installed = installed_map and installed_map[lname],
-        invalid = true
-      })
+  else
+    local seen_in_lock = { }
+    for name, current in pairs(locked) do
+      seen_in_lock[name:lower()] = true
+      local repo_entry = manifest.repository and manifest.repository[name:lower()]
+      local rd = rockspec_deps[name:lower()]
+      local constraints = rd and rd.constraints
+      local locked_is_dev = is_dev_version(current)
+      local wanted, latest = nil, nil
+      if repo_entry then
+        wanted = latest_matching(repo_entry, constraints, locked_is_dev)
+        latest = latest_matching(repo_entry, nil, locked_is_dev)
+      end
+      local constraint_str
+      if rd then
+        if rd.raw_constraint == "" then
+          constraint_str = "(any)"
+        else
+          constraint_str = rd.raw_constraint
+        end
+      else
+        constraint_str = "(no constraint)"
+      end
+      local installed_version = installed_map and installed_map[name:lower()]
+      local row = {
+        name = name,
+        current = current,
+        wanted = wanted,
+        latest = latest,
+        constraint_str = constraint_str,
+        installed = installed_version,
+        drift = installed_map ~= nil and installed_version ~= current,
+        transitive = rd == nil,
+        on_server = repo_entry ~= nil
+      }
+      if not repo_entry then
+        row.invalid = true
+        row.wanted = "(not on luarocks.org)"
+        row.latest = "-"
+      else
+        if wanted then
+          local cur_pv = parse_version(current)
+          local wanted_pv = parse_version(wanted)
+          row.outdated = cur_pv < wanted_pv
+        elseif constraints and #constraints > 0 then
+          row.invalid = true
+          row.wanted = "(no match for constraint)"
+        end
+        if wanted and latest then
+          if parse_version(wanted) < parse_version(latest) then
+            row.behind_rockspec = true
+          end
+        end
+      end
+      insert(rows, row)
+    end
+    for lname, rd in pairs(rockspec_deps) do
+      if not (seen_in_lock[lname]) then
+        insert(rows, {
+          name = rd.original_name,
+          current = "(missing)",
+          wanted = "-",
+          latest = "-",
+          constraint_str = rd.raw_constraint == "" and "(any)" or rd.raw_constraint,
+          installed = installed_map and installed_map[lname],
+          invalid = true
+        })
+      end
     end
   end
   sort(rows, function(a, b)
     return a.name:lower() < b.name:lower()
   end)
-  return print_rows(rows, args.all, args.installed)
+  return print_rows(rows, args.all, args.installed, not no_lock_mode)
 end
 return {
   outdated = outdated

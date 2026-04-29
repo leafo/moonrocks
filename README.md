@@ -69,6 +69,11 @@ Flags:
   install`) are highlighted and shown by default even when they aren't
   otherwise outdated. Missing installs are reported as `(not installed)`.
 
+  If `--installed` is set and there's no lockfile in the current directory,
+  the command falls back to comparing the rockspec's dependencies directly
+  against what's installed (no `Current` column). This is useful in projects
+  that don't keep a `luarocks.lock`.
+
 ```
 $ moonrocks outdated --installed
 Fetching https://luarocks.org/manifest...
