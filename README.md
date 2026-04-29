@@ -62,6 +62,21 @@ Flags:
 
 * `--all` — show every dependency, not just outdated ones.
 * `--lock <path>` — path to the lock file (default `./luarocks.lock`).
+* `--installed` — add an `Installed` column showing the version currently
+  installed in your local rocks tree (via `luarocks list --porcelain`). Rows
+  where the installed version differs from `Current` (i.e. your lockfile and
+  your rocks tree have drifted apart — you probably need to run `luarocks
+  install`) are highlighted and shown by default even when they aren't
+  otherwise outdated. Missing installs are reported as `(not installed)`.
+
+```
+$ moonrocks outdated --installed
+Fetching https://luarocks.org/manifest...
+Package    Current   Installed        Wanted    Latest    Constraint
+argparse   0.7.2-1   0.7.1-1          0.7.2-1   0.7.2-1   (any)
+basexx     0.4.1-1   (not installed)  0.4.1-1   0.4.1-1   (any)
+penlight   1.15.0-1  1.14.0-3         1.15.0-1  1.15.0-1  >= 1.1.0
+```
 
 ### `moonrocks upload <rockspec>`
 

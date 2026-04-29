@@ -71,6 +71,23 @@ fetch_manifest = (debug=false) ->
   _manifest_cache = env
   env
 
+fetch_installed = (debug=false) ->
+  cmd = "luarocks list --porcelain 2>/dev/null"
+  debug_log debug, colors "%{yellow}--> exec%{reset} #{cmd}"
+  pfile = io.popen cmd
+  unless pfile
+    error "failed to run `luarocks list --porcelain`"
+  installed = {}
+  for line in pfile\lines!
+    name, version = line\match "^([^\t]+)\t([^\t]+)"
+    if name and version
+      key = name\lower!
+      existing = installed[key]
+      if not existing or parse_version(existing) < parse_version(version)
+        installed[key] = version
+  pfile\close!
+  installed
+
 parse_dep = (s) ->
   name, rest = s\match "^%s*([%w_%-%.]+)%s*(.*)$"
   return nil unless name
@@ -99,28 +116,42 @@ pad = (s, n) ->
   s ..= string.rep " ", n - #s if #s < n
   s
 
-print_rows = (rows, show_all) ->
+print_rows = (rows, show_all, show_installed) ->
   filtered = if show_all
     rows
   else
-    [r for r in *rows when r.outdated or r.behind_rockspec or r.invalid]
+    [r for r in *rows when r.outdated or r.behind_rockspec or r.invalid or r.drift]
 
   if #filtered == 0
     print colors "%{bright green}All locked dependencies are up to date.%{reset}"
     return
 
-  headers = {"Package", "Current", "Wanted", "Latest", "Constraint"}
-  widths = {0, 0, 0, 0, 0}
+  headers = if show_installed
+    {"Package", "Current", "Installed", "Wanted", "Latest", "Constraint"}
+  else
+    {"Package", "Current", "Wanted", "Latest", "Constraint"}
+  widths = [0 for _ in *headers]
 
   rendered = {}
   for r in *filtered
-    insert rendered, {
-      r.name
-      r.current
-      r.wanted or "-"
-      r.latest or "-"
-      r.constraint_str
-    }
+    row = if show_installed
+      {
+        r.name
+        r.current
+        r.installed or "(not installed)"
+        r.wanted or "-"
+        r.latest or "-"
+        r.constraint_str
+      }
+    else
+      {
+        r.name
+        r.current
+        r.wanted or "-"
+        r.latest or "-"
+        r.constraint_str
+      }
+    insert rendered, row
 
   for i, h in ipairs headers
     widths[i] = #h
@@ -142,6 +173,8 @@ print_rows = (rows, show_all) ->
       "red"
     elseif orig.behind_rockspec
       "yellow"
+    elseif orig.drift
+      "magenta"
     elseif orig.transitive
       "dim"
     if color
@@ -158,6 +191,9 @@ outdated = (args) ->
 
   io.stderr\write colors "%{cyan}Fetching #{MANIFEST_URL}...%{reset}\n"
   manifest = fetch_manifest args.debug
+
+  installed_map = if args.installed
+    fetch_installed args.debug
 
   -- index rockspec deps by lowercase name
   rockspec_deps = {}
@@ -190,12 +226,16 @@ outdated = (args) ->
     else
       "(no constraint)"
 
+    installed_version = installed_map and installed_map[name\lower!]
+
     row = {
       :name
       :current
       :wanted
       :latest
       :constraint_str
+      installed: installed_version
+      drift: installed_map != nil and installed_version != current
       transitive: rd == nil
       on_server: repo_entry != nil
     }
@@ -228,10 +268,11 @@ outdated = (args) ->
         wanted: "-"
         latest: "-"
         constraint_str: rd.raw_constraint == "" and "(any)" or rd.raw_constraint
+        installed: installed_map and installed_map[lname]
         invalid: true
       }
 
   sort rows, (a, b) -> a.name\lower! < b.name\lower!
-  print_rows rows, args.all
+  print_rows rows, args.all, args.installed
 
 { :outdated }

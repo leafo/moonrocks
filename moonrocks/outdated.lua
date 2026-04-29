@@ -96,6 +96,31 @@ fetch_manifest = function(debug)
   _manifest_cache = env
   return env
 end
+local fetch_installed
+fetch_installed = function(debug)
+  if debug == nil then
+    debug = false
+  end
+  local cmd = "luarocks list --porcelain 2>/dev/null"
+  debug_log(debug, colors("%{yellow}--> exec%{reset} " .. tostring(cmd)))
+  local pfile = io.popen(cmd)
+  if not (pfile) then
+    error("failed to run `luarocks list --porcelain`")
+  end
+  local installed = { }
+  for line in pfile:lines() do
+    local name, version = line:match("^([^\t]+)\t([^\t]+)")
+    if name and version then
+      local key = name:lower()
+      local existing = installed[key]
+      if not existing or parse_version(existing) < parse_version(version) then
+        installed[key] = version
+      end
+    end
+  end
+  pfile:close()
+  return installed
+end
 local parse_dep
 parse_dep = function(s)
   local name, rest = s:match("^%s*([%w_%-%.]+)%s*(.*)$")
@@ -155,7 +180,7 @@ pad = function(s, n)
   return s
 end
 local print_rows
-print_rows = function(rows, show_all)
+print_rows = function(rows, show_all, show_installed)
   local filtered
   if show_all then
     filtered = rows
@@ -165,7 +190,7 @@ print_rows = function(rows, show_all)
       local _len_0 = 1
       for _index_0 = 1, #rows do
         local r = rows[_index_0]
-        if r.outdated or r.behind_rockspec or r.invalid then
+        if r.outdated or r.behind_rockspec or r.invalid or r.drift then
           _accum_0[_len_0] = r
           _len_0 = _len_0 + 1
         end
@@ -177,30 +202,59 @@ print_rows = function(rows, show_all)
     print(colors("%{bright green}All locked dependencies are up to date.%{reset}"))
     return 
   end
-  local headers = {
-    "Package",
-    "Current",
-    "Wanted",
-    "Latest",
-    "Constraint"
-  }
-  local widths = {
-    0,
-    0,
-    0,
-    0,
-    0
-  }
+  local headers
+  if show_installed then
+    headers = {
+      "Package",
+      "Current",
+      "Installed",
+      "Wanted",
+      "Latest",
+      "Constraint"
+    }
+  else
+    headers = {
+      "Package",
+      "Current",
+      "Wanted",
+      "Latest",
+      "Constraint"
+    }
+  end
+  local widths
+  do
+    local _accum_0 = { }
+    local _len_0 = 1
+    for _index_0 = 1, #headers do
+      local _ = headers[_index_0]
+      _accum_0[_len_0] = 0
+      _len_0 = _len_0 + 1
+    end
+    widths = _accum_0
+  end
   local rendered = { }
   for _index_0 = 1, #filtered do
     local r = filtered[_index_0]
-    insert(rendered, {
-      r.name,
-      r.current,
-      r.wanted or "-",
-      r.latest or "-",
-      r.constraint_str
-    })
+    local row
+    if show_installed then
+      row = {
+        r.name,
+        r.current,
+        r.installed or "(not installed)",
+        r.wanted or "-",
+        r.latest or "-",
+        r.constraint_str
+      }
+    else
+      row = {
+        r.name,
+        r.current,
+        r.wanted or "-",
+        r.latest or "-",
+        r.constraint_str
+      }
+    end
+    insert(rendered, row)
   end
   for i, h in ipairs(headers) do
     widths[i] = #h
@@ -242,6 +296,8 @@ print_rows = function(rows, show_all)
       color = "red"
     elseif orig.behind_rockspec then
       color = "yellow"
+    elseif orig.drift then
+      color = "magenta"
     elseif orig.transitive then
       color = "dim"
     end
@@ -260,6 +316,10 @@ outdated = function(args)
   local locked = load_lockfile(lock_fname)
   io.stderr:write(colors("%{cyan}Fetching " .. tostring(MANIFEST_URL) .. "...%{reset}\n"))
   local manifest = fetch_manifest(args.debug)
+  local installed_map
+  if args.installed then
+    installed_map = fetch_installed(args.debug)
+  end
   local rockspec_deps = { }
   local _list_0 = (rockspec.dependencies or { })
   for _index_0 = 1, #_list_0 do
@@ -296,12 +356,15 @@ outdated = function(args)
     else
       constraint_str = "(no constraint)"
     end
+    local installed_version = installed_map and installed_map[name:lower()]
     local row = {
       name = name,
       current = current,
       wanted = wanted,
       latest = latest,
       constraint_str = constraint_str,
+      installed = installed_version,
+      drift = installed_map ~= nil and installed_version ~= current,
       transitive = rd == nil,
       on_server = repo_entry ~= nil
     }
@@ -334,6 +397,7 @@ outdated = function(args)
         wanted = "-",
         latest = "-",
         constraint_str = rd.raw_constraint == "" and "(any)" or rd.raw_constraint,
+        installed = installed_map and installed_map[lname],
         invalid = true
       })
     end
@@ -341,7 +405,7 @@ outdated = function(args)
   sort(rows, function(a, b)
     return a.name:lower() < b.name:lower()
   end)
-  return print_rows(rows, args.all)
+  return print_rows(rows, args.all, args.installed)
 end
 return {
   outdated = outdated

@@ -30,6 +30,7 @@ do
   _with_0:argument("rockspec", "Path to rockspec (auto-detected if omitted)"):args("?")
   _with_0:option("--lock", "Path to luarocks.lock (default: ./luarocks.lock)")
   _with_0:flag("--all", "Show all dependencies, not just outdated ones")
+  _with_0:flag("--installed", "Show currently installed versions from luarocks")
 end
 local args = parser:parse()
 local run_action

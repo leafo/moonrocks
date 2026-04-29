@@ -28,6 +28,7 @@ with parser\command "outdated", "Show outdated locked dependencies"
   \argument("rockspec", "Path to rockspec (auto-detected if omitted)")\args "?"
   \option "--lock", "Path to luarocks.lock (default: ./luarocks.lock)"
   \flag "--all", "Show all dependencies, not just outdated ones"
+  \flag "--installed", "Show currently installed versions from luarocks"
 
 args = parser\parse!
 
