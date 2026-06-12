@@ -1,8 +1,4 @@
-url = require "socket.url"
-
 import insert, concat from table
-
-math.randomseed os.time!
 
 class File
   new: (@fname, @_mime) =>
@@ -15,16 +11,26 @@ class File
     @_mime
 
   content: =>
-    if file = assert io.open(@fname), "Failed to open file `#{@fname}`"
-      with file\read "*a"
-        file\close!
+    file = assert io.open @fname, "rb"
+    with file\read "*a"
+      file\close!
 
+seeded = false
 rand_string = (len) ->
-  shuffled = for i=1,len
+  unless seeded
+    math.randomseed os.time!
+    seeded = true
+
+  chars = for i=1,len
     r = math.random 97, 122
-    r-= 32 if math.random! >= 0.5
+    r -= 32 if math.random! >= 0.5
     r
-  string.char unpack shuffled
+  string.char unpack chars
+
+-- escape quotes and control characters for use inside a quoted-string
+-- header parameter (eg. name="...", filename="...")
+escape_quoted = (str) ->
+  (str\gsub '[%c"]', (c) -> "%%%02X"\format c\byte!)
 
 -- multipart encodes params
 -- returns encoded string,boundary
@@ -37,19 +43,19 @@ rand_string = (len) ->
 encode = (params) ->
   tuples = [t for t in *params]
 
-  for k,v in pairs params
-    if type(k) == "string"
-      insert tuples, { k, v }
+  string_keys = [k for k in pairs params when type(k) == "string"]
+  table.sort string_keys
+  for k in *string_keys
+    insert tuples, { k, params[k] }
 
   chunks = for tuple in *tuples
     k,v = unpack tuple
 
-    k = url.escape k
+    k = escape_quoted k
     buffer = { 'Content-Disposition: form-data; name="'.. k .. '"' }
 
     content = if type(v) == "table" and v.__class == File
-      -- how is this encoded?
-      buffer[1] ..= '; filename="' .. v.fname .. '"'
+      buffer[1] ..= '; filename="' .. escape_quoted(v.fname) .. '"'
       insert buffer, "Content-type: #{v\mime!}"
       v\content!
     else
@@ -62,9 +68,12 @@ encode = (params) ->
   local boundary
   while true
     boundary = "Boundary#{rand_string 16}"
+    collision = false
     for c in *chunks
-      continue if c\find boundary
-    do break
+      if c\find boundary, 1, true
+        collision = true
+        break
+    break unless collision
 
   inner = concat { "\r\n", "--", boundary, "\r\n" }
 

@@ -1,10 +1,8 @@
-local url = require("socket.url")
 local insert, concat
 do
   local _obj_0 = table
   insert, concat = _obj_0.insert, _obj_0.concat
 end
-math.randomseed(os.time())
 local File
 do
   local _class_0
@@ -22,15 +20,11 @@ do
       return self._mime
     end,
     content = function(self)
+      local file = assert(io.open(self.fname, "rb"))
       do
-        local file = assert(io.open(self.fname), "Failed to open file `" .. tostring(self.fname) .. "`")
-        if file then
-          do
-            local _with_0 = file:read("*a")
-            file:close()
-            return _with_0
-          end
-        end
+        local _with_0 = file:read("*a")
+        file:close()
+        return _with_0
       end
     end
   }
@@ -52,9 +46,14 @@ do
   _base_0.__class = _class_0
   File = _class_0
 end
+local seeded = false
 local rand_string
 rand_string = function(len)
-  local shuffled
+  if not (seeded) then
+    math.randomseed(os.time())
+    seeded = true
+  end
+  local chars
   do
     local _accum_0 = { }
     local _len_0 = 1
@@ -67,9 +66,15 @@ rand_string = function(len)
       _accum_0[_len_0] = _value_0
       _len_0 = _len_0 + 1
     end
-    shuffled = _accum_0
+    chars = _accum_0
   end
-  return string.char(unpack(shuffled))
+  return string.char(unpack(chars))
+end
+local escape_quoted
+escape_quoted = function(str)
+  return (str:gsub('[%c"]', function(c)
+    return ("%%%02X"):format(c:byte())
+  end))
 end
 local encode
 encode = function(params)
@@ -84,13 +89,25 @@ encode = function(params)
     end
     tuples = _accum_0
   end
-  for k, v in pairs(params) do
-    if type(k) == "string" then
-      insert(tuples, {
-        k,
-        v
-      })
+  local string_keys
+  do
+    local _accum_0 = { }
+    local _len_0 = 1
+    for k in pairs(params) do
+      if type(k) == "string" then
+        _accum_0[_len_0] = k
+        _len_0 = _len_0 + 1
+      end
     end
+    string_keys = _accum_0
+  end
+  table.sort(string_keys)
+  for _index_0 = 1, #string_keys do
+    local k = string_keys[_index_0]
+    insert(tuples, {
+      k,
+      params[k]
+    })
   end
   local chunks
   do
@@ -99,14 +116,14 @@ encode = function(params)
     for _index_0 = 1, #tuples do
       local tuple = tuples[_index_0]
       local k, v = unpack(tuple)
-      k = url.escape(k)
+      k = escape_quoted(k)
       local buffer = {
         'Content-Disposition: form-data; name="' .. k .. '"'
       }
       local content
       if type(v) == "table" and v.__class == File then
         local _update_0 = 1
-        buffer[_update_0] = buffer[_update_0] .. ('; filename="' .. v.fname .. '"')
+        buffer[_update_0] = buffer[_update_0] .. ('; filename="' .. escape_quoted(v.fname) .. '"')
         insert(buffer, "Content-type: " .. tostring(v:mime()))
         content = v:content()
       else
@@ -123,21 +140,15 @@ encode = function(params)
   local boundary
   while true do
     boundary = "Boundary" .. tostring(rand_string(16))
+    local collision = false
     for _index_0 = 1, #chunks do
-      local _continue_0 = false
-      repeat
-        local c = chunks[_index_0]
-        if c:find(boundary) then
-          _continue_0 = true
-          break
-        end
-        _continue_0 = true
-      until true
-      if not _continue_0 then
+      local c = chunks[_index_0]
+      if c:find(boundary, 1, true) then
+        collision = true
         break
       end
     end
-    do
+    if not (collision) then
       break
     end
   end
