@@ -87,7 +87,15 @@ upload = (args) ->
 
   rock_fname = unless args.skip_pack
     print colors "%{cyan}Packing %{reset}#{rockspec.package}"
-    ret = os.execute "luarocks pack '#{fname}'"
+
+    -- pack from the rockspec's directory so the rock is written next to it
+    dir = fname\match "^(.*)/"
+    cmd = if dir
+      "cd '#{dir}' && luarocks pack '#{fname\match "[^/]+$"}'"
+    else
+      "luarocks pack '#{fname}'"
+
+    ret = os.execute cmd
     unless ret == 0
       print colors "%{bright red}Failed to pack source rock!%{reset} (--skip-pack to disable)"
       return

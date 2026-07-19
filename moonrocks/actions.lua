@@ -97,7 +97,14 @@ upload = function(args)
   local rock_fname
   if not (args.skip_pack) then
     print(colors("%{cyan}Packing %{reset}" .. tostring(rockspec.package)))
-    local ret = os.execute("luarocks pack '" .. tostring(fname) .. "'")
+    local dir = fname:match("^(.*)/")
+    local cmd
+    if dir then
+      cmd = "cd '" .. tostring(dir) .. "' && luarocks pack '" .. tostring(fname:match("[^/]+$")) .. "'"
+    else
+      cmd = "luarocks pack '" .. tostring(fname) .. "'"
+    end
+    local ret = os.execute(cmd)
     if not (ret == 0) then
       print(colors("%{bright red}Failed to pack source rock!%{reset} (--skip-pack to disable)"))
       return 
