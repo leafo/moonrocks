@@ -92,6 +92,9 @@ you'll be prompted to overwrite.
 By default `upload` runs `luarocks pack` to build a `.src.rock` and uploads
 that alongside the rockspec. Pass `--skip-pack` to skip the source rock.
 
+If your account requires two-factor authentication, `upload` will prompt for a
+code. You can also pass one with `--code <code>` or set `MOONROCKS_TFA_CODE`.
+
 All remote actions require a luarocks.org account and an API key. The first
 time you run a remote command you'll be prompted to paste a key — generate one
 at <https://luarocks.org/settings/api-keys>.
