@@ -105,12 +105,24 @@ fetch_manifest = function(debug)
   _manifest_cache = env
   return env
 end
+local shell_quote
+shell_quote = function(str)
+  return "'" .. str:gsub("'", "'\\''") .. "'"
+end
 local fetch_installed
-fetch_installed = function(debug)
-  if debug == nil then
-    debug = false
+fetch_installed = function(opts)
+  if opts == nil then
+    opts = { }
   end
-  local cmd = "luarocks list --porcelain 2>/dev/null"
+  local cmd = "luarocks"
+  if opts.lua_version then
+    cmd = cmd .. " --lua-version=" .. tostring(shell_quote(opts.lua_version))
+  end
+  if opts.tree then
+    cmd = cmd .. " --tree=" .. tostring(shell_quote(opts.tree))
+  end
+  cmd = cmd .. " list --porcelain 2>/dev/null"
+  local debug = opts.debug
   debug_log(debug, colors("%{yellow}--> exec%{reset} " .. tostring(cmd)))
   local pfile = io.popen(cmd)
   if not (pfile) then
@@ -314,6 +326,9 @@ print_rows = function(rows, show_all, show_installed, show_current)
 end
 local outdated
 outdated = function(args)
+  if (args.lua_version or args.tree) and not args.installed then
+    error("--lua-version and --tree require --installed")
+  end
   local rockspec_fname = args.rockspec or find_rockspec_in_cwd()
   local rockspec = load_rockspec(rockspec_fname)
   local explicit_lock = args.lock ~= nil
@@ -340,7 +355,11 @@ outdated = function(args)
   local manifest = fetch_manifest(args.debug)
   local installed_map
   if args.installed then
-    installed_map = fetch_installed(args.debug)
+    installed_map = fetch_installed({
+      debug = args.debug,
+      lua_version = args.lua_version,
+      tree = args.tree
+    })
   end
   local rockspec_deps = { }
   local _list_0 = (rockspec.dependencies or { })

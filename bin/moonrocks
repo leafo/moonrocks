@@ -31,6 +31,8 @@ do
   _with_0:option("--lock", "Path to luarocks.lock (default: ./luarocks.lock)")
   _with_0:flag("--all", "Show all dependencies, not just outdated ones")
   _with_0:flag("--installed", "Show currently installed versions from luarocks")
+  _with_0:option("--lua-version", "Lua version of the tree to read installed versions from")
+  _with_0:option("--tree", "Rocks tree to read installed versions from")
 end
 local args = parser:parse()
 local run_action

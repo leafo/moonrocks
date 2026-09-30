@@ -77,8 +77,14 @@ fetch_manifest = (debug=false) ->
   _manifest_cache = env
   env
 
-fetch_installed = (debug=false) ->
-  cmd = "luarocks list --porcelain 2>/dev/null"
+shell_quote = (str) -> "'" .. str\gsub("'", "'\\''") .. "'"
+
+fetch_installed = (opts={}) ->
+  cmd = "luarocks"
+  cmd ..= " --lua-version=#{shell_quote opts.lua_version}" if opts.lua_version
+  cmd ..= " --tree=#{shell_quote opts.tree}" if opts.tree
+  cmd ..= " list --porcelain 2>/dev/null"
+  debug = opts.debug
   debug_log debug, colors "%{yellow}--> exec%{reset} #{cmd}"
   pfile = io.popen cmd
   unless pfile
@@ -184,6 +190,9 @@ print_rows = (rows, show_all, show_installed, show_current=true) ->
       print line
 
 outdated = (args) ->
+  if (args.lua_version or args.tree) and not args.installed
+    error "--lua-version and --tree require --installed"
+
   rockspec_fname = args.rockspec or find_rockspec_in_cwd!
   rockspec = load_rockspec rockspec_fname
 
@@ -207,7 +216,11 @@ outdated = (args) ->
   manifest = fetch_manifest args.debug
 
   installed_map = if args.installed
-    fetch_installed args.debug
+    fetch_installed {
+      debug: args.debug
+      lua_version: args.lua_version
+      tree: args.tree
+    }
 
   -- index rockspec deps by lowercase name
   rockspec_deps = {}
